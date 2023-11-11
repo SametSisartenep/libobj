@@ -1,6 +1,6 @@
 #include <u.h>
 #include <libc.h>
-#include "../../obj.h"
+#include "../obj.h"
 
 static char fd0[] = "/fd/0";
 
@@ -26,10 +26,12 @@ main(int argc, char *argv[])
 		usage();
 	if(argc == 1)
 		f = argv[0];
+
 	obj = objparse(f);
 	if(obj == nil)
 		sysfatal("objparse: %r");
+
 	print("%O\n", obj);
 	objfree(obj);
-	exits(0);
+	exits(nil);
 }

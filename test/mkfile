@@ -5,14 +5,14 @@ TARG=objtest
 OFILES=\
 	main.$O\
 
-HFILES=../../obj.h
+HFILES=../obj.h
 
 LIB=\
-	../../libobj.a$O\
+	../libobj.a$O\
 
 </sys/src/cmd/mkone
 
-../../libobj.a$O:
+../libobj.a$O:
 	cd ..
 	mk install
 
