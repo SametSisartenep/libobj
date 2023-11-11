@@ -54,6 +54,12 @@ erealloc(void *v, ulong n)
 	return nv;
 }
 
+static int
+max(int a, int b)
+{
+	return a > b? a: b;
+}
+
 static uint
 hash(char *s)
 {
@@ -103,16 +109,22 @@ allocelem(int t)
 }
 
 static void
-addelemidx(OBJElem *e, int idx)
+addelemidx(OBJElem *e, int idxtab, int idx)
 {
-	e->indices = erealloc(e->indices, ++e->nindex*sizeof(int));
-	e->indices[e->nindex-1] = idx;
+	OBJIndexArray *tab;
+
+	tab = &e->indextab[idxtab];
+	tab->indices = erealloc(tab->indices, ++tab->nindex*sizeof(int));
+	tab->indices[tab->nindex-1] = idx;
 }
 
 static void
 freeelem(OBJElem *e)
 {
-	free(e->indices);
+	int i;
+
+	for(i = 0; i < nelem(e->indextab); i++)
+		free(e->indextab[i].indices);
 	free(e);
 }
 
@@ -183,7 +195,7 @@ objparse(char *file)
 	OBJVertex v;
 	double *d;
 	char c, buf[256], *p;
-	int vtype, idx, sign;
+	int vtype, idxtab, idx, sign;
 
 	o = nil;
 	bin = Bopen(file, OREAD);
@@ -323,7 +335,7 @@ objparse(char *file)
 					goto error;
 				}
 				e = allocelem(OBJEPoint);
-				addelemidx(e, idx);
+				addelemidx(e, OBJVGeometric, idx);
 				if(o == nil){
 					o = alloco("default");
 					pusho(obj, o);
@@ -368,7 +380,7 @@ objparse(char *file)
 					goto error;
 				}
 				e = allocelem(OBJELine);
-				addelemidx(e, idx);
+				addelemidx(e, OBJVGeometric, idx);
 Line2:
 				idx = 0;
 				sign = 0;
@@ -404,7 +416,7 @@ Line2:
 					error("not enough vertices");
 					goto error;
 				}
-				addelemidx(e, idx);
+				addelemidx(e, OBJVGeometric, idx);
 				if(o == nil){
 					o = alloco("default");
 					pusho(obj, o);
@@ -414,6 +426,7 @@ Line2:
 			break;
 		case 'f':
 			e = allocelem(OBJEFace);
+			idxtab = 0;
 			c = Bgetc(bin);
 			if(!isspace(c)){
 				freeelem(e);
@@ -423,11 +436,21 @@ Line2:
 			while(c = Bgetc(bin), c != '\n'){
 				idx = 0;
 				sign = 0;
+				if(isspace(c))
+					idxtab = 0;
 				while(isspace(c))
 					c = Bgetc(bin);
 				if(c == '\\'){
 					while(c != '\n')
 						c = Bgetc(bin);
+					continue;
+				}
+				if(c == '/'){
+					if(++idxtab >= OBJNVERT){
+						freeelem(e);
+						error("unknown vertex type '%d'", idxtab);
+						goto error;
+					}
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
@@ -448,13 +471,13 @@ Line2:
 					idx = idx*10 + c-'0';
 				}while(c = Bgetc(bin), isdigit(c));
 				Bungetc(bin);
-				idx = sign ? obj->vertdata[OBJVGeometric].nvert-idx : idx-1;
-				if(idx+1 > obj->vertdata[OBJVGeometric].nvert){
+				idx = sign ? obj->vertdata[idxtab].nvert-idx : idx-1;
+				if(idx+1 > obj->vertdata[idxtab].nvert){
 					freeelem(e);
 					error("not enough vertices");
 					goto error;
 				}
-				addelemidx(e, idx);
+				addelemidx(e, idxtab, idx);
 			}
 			if(o == nil){
 				o = alloco("default");
@@ -525,56 +548,66 @@ OBJfmt(Fmt *f)
 	OBJObject *o;
 	OBJElem *e;
 	OBJVertex v;
-	int i, j, r, pack;
+	int i, j, k, n, pack, maxnindex;
 
-	r = pack = 0;
+	n = pack = 0;
 	obj = va_arg(f->args, OBJ*);
 	for(i = 0; i < nelem(obj->vertdata); i++)
 		for(j = 0; j < obj->vertdata[i].nvert; j++){
 			v = obj->vertdata[i].verts[j];
 			switch(i){
 			case OBJVGeometric:
-				r += fmtprint(f, "v %g %g %g %g\n", v.x, v.y, v.z, v.w);
+				n += fmtprint(f, "v %g %g %g %g\n", v.x, v.y, v.z, v.w);
 				break;
 			case OBJVTexture:
-				r += fmtprint(f, "vt %g %g %g\n", v.u, v.v, v.vv);
+				n += fmtprint(f, "vt %g %g %g\n", v.u, v.v, v.vv);
 				break;
 			case OBJVNormal:
-				r += fmtprint(f, "vn %g %g %g\n", v.i, v.j, v.k);
+				n += fmtprint(f, "vn %g %g %g\n", v.i, v.j, v.k);
 				break;
 			case OBJVParametric:
-				r += fmtprint(f, "vp %g %g %g\n", v.u, v.v, v.vv);
+				n += fmtprint(f, "vp %g %g %g\n", v.u, v.v, v.vv);
 				break;
 			}
 		}
 	for(i = 0; i < nelem(obj->objtab); i++)
 		for(o = obj->objtab[i]; o != nil; o = o->next){
 			if(strcmp(o->name, "default") != 0)
-				r += fmtprint(f, "o %s\n", o->name);
+				n += fmtprint(f, "o %s\n", o->name);
 			for(e = o->child; e != nil; e = e->next){
 				switch(e->type){
 				case OBJEPoint:
 					if(pack == 0)
-						r += fmtprint(f, "p");
+						n += fmtprint(f, "p");
 					pack = pack > 0 ? --pack : 8-1;
 					break;
 				case OBJELine:
-					r += fmtprint(f, "l");
+					n += fmtprint(f, "l");
 					break;
 				case OBJEFace:
-					r += fmtprint(f, "f");
+					n += fmtprint(f, "f");
 					break;
 				//case OBJECurve:
 				//case OBJECurve2:
 				//case OBJESurface:
 				}
-				for(j = 0; j < e->nindex; j++)
-					r += fmtprint(f, " %d", e->indices[j]+1);
+				for(maxnindex = 0, j = 0; j < nelem(e->indextab); j++)
+					maxnindex = max(e->indextab[j].nindex, maxnindex);
+				for(k = 0; k < maxnindex; k++){
+					n += fmtprint(f, " ");
+					for(j = 0; j < nelem(e->indextab); j++){
+						if(k >= e->indextab[j].nindex)
+							continue;
+						if(j > 0)
+							n += fmtprint(f, "/");
+						n += fmtprint(f, "%d", e->indextab[j].indices[k]+1);
+					}
+				}
 				if(e->type != OBJEPoint || pack == 0)
-					r += fmtprint(f, "\n");
+					n += fmtprint(f, "\n");
 			}
 		}
-	return r;
+	return n;
 }
 
 void

@@ -28,6 +28,7 @@ enum {
 
 typedef union OBJVertex OBJVertex;
 typedef struct OBJVertexArray OBJVertexArray;
+typedef struct OBJIndexArray OBJIndexArray;
 typedef struct OBJElem OBJElem;
 //typedef struct OBJGroup OBJGroup;
 typedef struct OBJObject OBJObject;
@@ -48,10 +49,15 @@ struct OBJVertexArray
 	int nvert;
 };
 
-struct OBJElem
+struct OBJIndexArray
 {
 	int *indices;
 	int nindex;
+};
+
+struct OBJElem
+{
+	OBJIndexArray indextab[OBJNVERT];
 	int type;
 	OBJElem *next;
 };
