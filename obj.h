@@ -26,7 +26,7 @@ enum {
 	OBJHTSIZE = 17
 };
 
-typedef struct OBJVertex OBJVertex;
+typedef union OBJVertex OBJVertex;
 typedef struct OBJVertexArray OBJVertexArray;
 typedef struct OBJElem OBJElem;
 //typedef struct OBJGroup OBJGroup;
@@ -35,13 +35,11 @@ typedef struct OBJ OBJ;
 
 #pragma varargck type "O" OBJ*
 
-struct OBJVertex
+union OBJVertex
 {
-	union {
-		struct { double x, y, z, w; };	/* geometric */
-		struct { double u, v, vv; };	/* texture and parametric */
-		struct { double i, j, k; };	/* normal */
-	};
+	struct { double x, y, z, w; };	/* geometric */
+	struct { double u, v, vv; };	/* texture and parametric */
+	struct { double i, j, k; };	/* normal */
 };
 
 struct OBJVertexArray
