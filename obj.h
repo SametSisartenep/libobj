@@ -80,6 +80,7 @@ struct OBJObject
 {
 	char *name;
 	OBJElem *child;
+	OBJElem *lastone;
 	OBJObject *next;
 };
 

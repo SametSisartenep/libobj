@@ -87,15 +87,12 @@ addvert(OBJ *obj, OBJVertex v, int vtype)
 static void
 addelem(OBJObject *o, OBJElem *e)
 {
-	OBJElem *ep;
-
-	if(o->child == nil){
-		o->child = e;
+	if(o->lastone == nil){
+		o->lastone = o->child = e;
 		return;
 	}
-	for(ep = o->child; ep->next != nil; ep = ep->next)
-		;
-	ep->next = e;
+	o->lastone->next = e;
+	o->lastone = o->lastone->next;
 }
 
 static OBJElem *
