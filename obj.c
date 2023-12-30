@@ -280,7 +280,7 @@ objparse(char *file)
 			}
 			do{
 				*p++ = c;
-			}while(c = Bgetc(bin), isalnum(c) && p-buf < sizeof(buf)-1);
+			}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
 			*p = 0;
 			o = geto(obj, buf);
 			if(o == nil){
