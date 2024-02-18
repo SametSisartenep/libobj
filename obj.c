@@ -15,6 +15,7 @@ struct Line
 };
 
 static Line curline;
+static Line curmtline;
 
 static void
 error(char *fmt, ...)
@@ -24,6 +25,19 @@ error(char *fmt, ...)
 
 	va_start(va, fmt);
 	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curline.file, curline.lineno);
+	vseprint(bp, buf + sizeof buf, fmt, va);
+	va_end(va);
+	werrstr("%s\n", buf);
+}
+
+static void
+mterror(char *fmt, ...)
+{
+	va_list va;
+	char buf[ERRMAX], *bp;
+
+	va_start(va, fmt);
+	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curmtline.file, curmtline.lineno);
 	vseprint(bp, buf + sizeof buf, fmt, va);
 	va_end(va);
 	werrstr("%s\n", buf);
@@ -52,6 +66,17 @@ erealloc(void *v, ulong n)
 		sysfatal("realloc: %r");
 	setrealloctag(nv, getcallerpc(&v));
 	return nv;
+}
+
+static char *
+estrdup(char *s)
+{
+	char *ns;
+
+	ns = strdup(s);
+	if(ns == nil)
+		sysfatal("strdup: %r");
+	return ns;
 }
 
 static int
@@ -102,6 +127,7 @@ allocelem(int t)
 
 	e = emalloc(sizeof(OBJElem));
 	e->type = t;
+	e->mtl = nil;
 	return e;
 }
 
@@ -131,7 +157,7 @@ alloco(char *n)
 	OBJObject *o;
 
 	o = emalloc(sizeof(OBJObject));
-	o->name = strdup(n);
+	o->name = estrdup(n);
 	return o;
 }
 
@@ -182,18 +208,219 @@ geto(OBJ *obj, char *n)
 	return o;
 }
 
+static OBJMaterial *
+allocmt(char *name)
+{
+	OBJMaterial *m;
+
+	m = emalloc(sizeof *m);
+	memset(m, 0, sizeof *m);
+	m->name = estrdup(name);
+	return m;
+}
+
+static void
+freemt(OBJMaterial *m)
+{
+	free(m->name);
+	free(m);
+}
+
+static OBJMaterlist *
+allocmtl(char *file)
+{
+	OBJMaterlist *ml;
+
+	ml = emalloc(sizeof *ml);
+	memset(ml, 0, sizeof *ml);
+	ml->filename = estrdup(file);
+	return ml;
+}
+
+static void
+addmtl(OBJMaterlist *ml, OBJMaterial *m)
+{
+	OBJMaterial *mp, *prev;
+	uint h;
+
+	prev = nil;
+	h = hash(m->name);
+	for(mp = ml->mattab[h]; mp != nil; prev = mp, mp = mp->next)
+		if(strcmp(mp->name, m->name) == 0){
+			m->next = mp->next;
+			freemt(mp);
+			break;
+		}
+	if(prev == nil){
+		ml->mattab[h] = m;
+		return;
+	}
+	prev->next = m;
+}
+
+static OBJMaterial *
+getmtl(OBJMaterlist *ml, char *name)
+{
+	OBJMaterial *m;
+	uint h;
+
+	h = hash(name);
+	for(m = ml->mattab[h]; m != nil; m = m->next)
+		if(strcmp(m->name, name) == 0)
+			return m;
+	return nil;
+}
+
+OBJMaterlist *
+objmtlparse(char *file)
+{
+	OBJMaterlist *ml;
+	OBJMaterial *m;
+	Biobuf *bin;
+	char *line, *f[10], *p, buf[128];
+	int nf;
+
+	if((p = strrchr(curline.file, '/')) != nil)
+		snprint(buf, sizeof buf, "%.*s/%s", p-curline.file, curline.file, file);
+
+	bin = Bopen(buf, OREAD);
+	if(bin == nil)
+		sysfatal("Bopen: %r");
+
+	ml = allocmtl(file);
+	m = nil;
+	curmtline.file = file;
+	curmtline.lineno = 0;
+
+	while((line = Brdline(bin, '\n')) != nil){
+		curmtline.lineno++;
+		line[Blinelen(bin)-1] = 0;
+
+		nf = tokenize(line, f, nelem(f));
+		if(nf == 2 && strcmp(f[0], "newmtl") == 0){
+			m = allocmt(f[1]);
+			addmtl(ml, m);
+		}
+		if((nf == 2 || nf == 4) && strcmp(f[0], "Ka") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			if(nf == 2)
+				m->Ka.r = m->Ka.g = m->Ka.b = strtod(f[1], nil);
+			else{
+				m->Ka.r = strtod(f[1], nil);
+				m->Ka.g = strtod(f[2], nil);
+				m->Ka.b = strtod(f[3], nil);
+			}
+		}
+		if((nf == 2 || nf == 4) && strcmp(f[0], "Kd") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			if(nf == 2)
+				m->Kd.r = m->Kd.g = m->Kd.b = strtod(f[1], nil);
+			else{
+				m->Kd.r = strtod(f[1], nil);
+				m->Kd.g = strtod(f[2], nil);
+				m->Kd.b = strtod(f[3], nil);
+			}
+		}
+		if((nf == 2 || nf == 4) && strcmp(f[0], "Ks") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			if(nf == 2)
+				m->Ks.r = m->Ks.g = m->Ks.b = strtod(f[1], nil);
+			else{
+				m->Ks.r = strtod(f[1], nil);
+				m->Ks.g = strtod(f[2], nil);
+				m->Ks.b = strtod(f[3], nil);
+			}
+		}
+		if((nf == 2 || nf == 4) && strcmp(f[0], "Ke") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			if(nf == 2)
+				m->Ke.r = m->Ke.g = m->Ke.b = strtod(f[1], nil);
+			else{
+				m->Ke.r = strtod(f[1], nil);
+				m->Ke.g = strtod(f[2], nil);
+				m->Ke.b = strtod(f[3], nil);
+			}
+		}
+		if(nf == 2 && strcmp(f[0], "Ns") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			m->Ns = strtod(f[1], nil);
+		}
+		if(nf == 2 && strcmp(f[0], "Ni") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			m->Ni = strtod(f[1], nil);
+		}
+		if(nf == 2 && strcmp(f[0], "d") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			m->d = strtod(f[1], nil);
+		}
+		if(nf == 2 && strcmp(f[0], "illum") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			m->illum = strtol(f[1], nil, 10);
+		}
+	}
+	Bterm(bin);
+	return ml;
+error:
+	objmtlfree(ml);
+	Bterm(bin);
+	return nil;
+}
+
+void
+objmtlfree(OBJMaterlist *ml)
+{
+	OBJMaterial *m, *nm;
+	int i;
+
+	if(ml == nil)
+		return;
+	for(i = 0; i < nelem(ml->mattab); i++)
+		for(m = ml->mattab[i]; m != nil; m = nm){
+			nm = m->next;
+			freemt(m);
+		}
+	free(ml->filename);
+	free(ml);
+}
+
 OBJ *
 objparse(char *file)
 {
 	Biobuf *bin;
 	OBJ *obj;
 	OBJObject *o;
+	OBJMaterial *m;
 	OBJElem *e;
 	OBJVertex v;
 	double *d;
 	char c, buf[256], *p;
 	int vtype, idxtab, idx, sign;
 
+	m = nil;
 	o = nil;
 	bin = Bopen(file, OREAD);
 	if(bin == nil)
@@ -480,6 +707,8 @@ Line2:
 				o = alloco("default");
 				pusho(obj, o);
 			}
+			if(m != nil)
+				e->mtl = m;
 			addelem(o, e);
 			break;
 		case 'm':
@@ -489,7 +718,31 @@ Line2:
 				*p++ = c;
 			}while(c = Bgetc(bin), isalpha(c) && p-buf < sizeof(buf)-1);
 			*p = 0;
-			if(strcmp(buf, "mtllib") != 0 && strcmp(buf, "usemtl") != 0){
+			if(strcmp(buf, "mtllib") == 0){
+				while(isspace(c))
+					c = Bgetc(bin);
+				p = buf;
+				do{
+					*p++ = c;
+				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
+				*p = 0;
+				if((obj->materials = objmtlparse(buf)) == nil){
+					error("objmtlparse: %r");
+					goto error;
+				}
+			}else if(strcmp(buf, "usemtl") == 0){
+				while(isspace(c))
+					c = Bgetc(bin);
+				p = buf;
+				do{
+					*p++ = c;
+				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
+				*p = 0;
+				if((m = getmtl(obj->materials, buf)) == nil){
+					error("no material '%s' found", buf);
+					goto error;
+				}
+			}else{
 				error("syntax error");
 				goto error;
 			}
@@ -528,6 +781,8 @@ objfree(OBJ *obj)
 
 	if(obj == nil)
 		return;
+	if(obj->materials != nil)
+		objmtlfree(obj->materials);
 	for(i = 0; i < nelem(obj->vertdata); i++)
 		free(obj->vertdata[i].verts);
 	for(i = 0; i < nelem(obj->objtab); i++)
@@ -536,6 +791,33 @@ objfree(OBJ *obj)
 			freeo(o);
 		}
 	free(obj);
+}
+
+int
+OBJMaterlistfmt(Fmt *f)
+{
+	OBJMaterlist *ml;
+	OBJMaterial *m;
+	int n, i;
+
+	n = 0;
+	ml = va_arg(f->args, OBJMaterlist*);
+
+	for(i = 0; i < nelem(ml->mattab); i++)
+		for(m = ml->mattab[i]; m != nil; m = m->next){
+			n += fmtprint(f, "newmtl %s\n", m->name);
+			n += fmtprint(f, "Ka %g %g %g\n", m->Ka.r, m->Ka.g, m->Ka.b);
+			n += fmtprint(f, "Kd %g %g %g\n", m->Kd.r, m->Kd.g, m->Kd.b);
+			n += fmtprint(f, "Ks %g %g %g\n", m->Ks.r, m->Ks.g, m->Ks.b);
+			n += fmtprint(f, "Ke %g %g %g\n", m->Ke.r, m->Ke.g, m->Ke.b);
+			n += fmtprint(f, "Ns %g\n", m->Ns);
+			n += fmtprint(f, "Ni %g\n", m->Ni);
+			n += fmtprint(f, "d %g\n", m->d);
+			n += fmtprint(f, "illum %d\n", m->illum);
+			n += fmtprint(f, "\n");
+		}
+
+	return n;
 }
 
 int
@@ -567,6 +849,8 @@ OBJfmt(Fmt *f)
 				break;
 			}
 		}
+	if(obj->materials != nil)
+		n += fmtprint(f, "mtllib %s\n", obj->materials->filename);
 	for(i = 0; i < nelem(obj->objtab); i++)
 		for(o = obj->objtab[i]; o != nil; o = o->next){
 			if(strcmp(o->name, "default") != 0)
@@ -582,6 +866,8 @@ OBJfmt(Fmt *f)
 					n += fmtprint(f, "l");
 					break;
 				case OBJEFace:
+					if(e->mtl != nil)
+						n += fmtprint(f, "usemtl %s\n", e->mtl->name);
 					n += fmtprint(f, "f");
 					break;
 				//case OBJECurve:

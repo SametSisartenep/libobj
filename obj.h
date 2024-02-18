@@ -27,8 +27,11 @@ enum {
 };
 
 typedef union OBJVertex OBJVertex;
+typedef struct OBJColor OBJColor;
 typedef struct OBJVertexArray OBJVertexArray;
 typedef struct OBJIndexArray OBJIndexArray;
+typedef struct OBJMaterial OBJMaterial;
+typedef struct OBJMaterlist OBJMaterlist;
 typedef struct OBJElem OBJElem;
 //typedef struct OBJGroup OBJGroup;
 typedef struct OBJObject OBJObject;
@@ -43,6 +46,11 @@ union OBJVertex
 	struct { double i, j, k; };	/* normal */
 };
 
+struct OBJColor
+{
+	double r, g, b;
+};
+
 struct OBJVertexArray
 {
 	OBJVertex *verts;
@@ -55,10 +63,32 @@ struct OBJIndexArray
 	int nindex;
 };
 
+struct OBJMaterial
+{
+	char *name;
+	OBJColor Ka;		/* ambient color */
+	OBJColor Kd;		/* diffuse color */
+	OBJColor Ks;		/* specular color */
+	OBJColor Ke;		/* emissive color */
+	double Ns;		/* specular highlight */
+	double Ni;		/* index of refraction */
+	double d;		/* dissolution factor */
+	int illum;		/* illumination model */
+	double map_Kd;		/* color texture file */
+	OBJMaterial *next;
+};
+
+struct OBJMaterlist
+{
+	char *filename;
+	OBJMaterial *mattab[OBJHTSIZE];
+};
+
 struct OBJElem
 {
 	OBJIndexArray indextab[OBJNVERT];
 	int type;
+	OBJMaterial *mtl;
 	OBJElem *next;
 };
 
@@ -88,10 +118,14 @@ struct OBJ
 {
 	OBJVertexArray vertdata[OBJNVERT];
 	OBJObject *objtab[OBJHTSIZE];
+	OBJMaterlist *materials;
 };
 
 OBJ *objparse(char*);
 void objfree(OBJ*);
+OBJMaterlist *objmtlparse(char*);
+void objmtlfree(OBJMaterlist*);
 
+int OBJMaterlistfmt(Fmt*);
 int OBJfmt(Fmt*);
 void OBJfmtinstall(void);
