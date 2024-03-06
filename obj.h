@@ -74,7 +74,7 @@ struct OBJMaterial
 	double Ni;		/* index of refraction */
 	double d;		/* dissolution factor */
 	int illum;		/* illumination model */
-	double map_Kd;		/* color texture file */
+	Memimage *map_Kd;	/* color texture file */
 	OBJMaterial *next;
 };
 

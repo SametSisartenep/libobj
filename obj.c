@@ -2,6 +2,8 @@
 #include <libc.h>
 #include <ctype.h>
 #include <bio.h>
+#include <draw.h>
+#include <memdraw.h>
 #include <obj.h>
 
 #undef isspace(c)
@@ -94,6 +96,80 @@ hash(char *s)
 	while(*s != 0)
 		h = (h^(uchar)*s++) * 0x1000193;
 	return h % OBJHTSIZE;
+}
+
+typedef struct Deco Deco;
+struct Deco
+{
+	int pfd[2];
+	int infd;
+	char *prog;
+};
+
+static void
+decproc(void *arg)
+{
+	char buf[32];
+	Deco *d;
+
+	d = arg;
+
+	close(d->pfd[0]);
+	dup(d->infd, 0);
+	close(d->infd);
+	dup(d->pfd[1], 1);
+	close(d->pfd[1]);
+
+	snprint(buf, sizeof buf, "/bin/%s", d->prog);
+
+	execl(buf, d->prog, "-9t", nil);
+	sysfatal("execl: %r");
+}
+
+static Memimage *
+genreadimage(char *prog, char *path)
+{
+	Memimage *i;
+	Deco d;
+
+	d.prog = prog;
+
+	if(pipe(d.pfd) < 0)
+		sysfatal("pipe: %r");
+	d.infd = open(path, OREAD);
+	if(d.infd < 0)
+		sysfatal("open: %r");
+	switch(fork()){
+	case -1:
+		sysfatal("fork: %r");
+	case 0:
+		decproc(&d);
+	default:
+		close(d.pfd[1]);
+		i = readmemimage(d.pfd[0]);
+		close(d.pfd[0]);
+		close(d.infd);
+	}
+
+	return i;
+}
+
+static Memimage *
+readtga(char *path)
+{
+	return genreadimage("tga", path);
+}
+
+static Memimage *
+readpng(char *path)
+{
+	return genreadimage("png", path);
+}
+
+static Memimage *
+readjpg(char *path)
+{
+	return genreadimage("jpg", path);
 }
 
 static void
@@ -277,7 +353,7 @@ objmtlparse(char *file)
 	OBJMaterlist *ml;
 	OBJMaterial *m;
 	Biobuf *bin;
-	char *line, *f[10], *p, buf[128];
+	char *line, *f[10], *p, *ext, buf[128];
 	int nf;
 
 	if((p = strrchr(curline.file, '/')) != nil)
@@ -374,6 +450,30 @@ objmtlparse(char *file)
 			}
 			m->d = strtod(f[1], nil);
 		}
+		if(nf == 2 && strcmp(f[0], "map_Kd") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			ext = strrchr(f[1], '.');
+			if(ext++ != nil){
+				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+				if(strcmp(ext, "tga") == 0)
+					m->map_Kd = readtga(buf);
+				else if(strcmp(ext, "png") == 0)
+					m->map_Kd = readpng(buf);
+				else if(strcmp(ext, "jpg") == 0)
+					m->map_Kd = readjpg(buf);
+				else{
+					mterror("file format not supported");
+					goto error;
+				}
+				if(m->map_Kd == nil){
+					mterror("read%s: %r", ext);
+					goto error;
+				}
+			}
+		}
 		if(nf == 2 && strcmp(f[0], "illum") == 0){
 			if(m == nil){
 				mterror("no material found");
@@ -401,6 +501,7 @@ objmtlfree(OBJMaterlist *ml)
 	for(i = 0; i < nelem(ml->mattab); i++)
 		for(m = ml->mattab[i]; m != nil; m = nm){
 			nm = m->next;
+			freememimage(m->map_Kd);
 			freemt(m);
 		}
 	free(ml->filename);
