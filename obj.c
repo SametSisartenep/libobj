@@ -281,11 +281,11 @@ objmtlparse(char *file)
 	int nf;
 
 	if((p = strrchr(curline.file, '/')) != nil)
-		snprint(buf, sizeof buf, "%.*s/%s", p-curline.file, curline.file, file);
+		snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, file);
 
 	bin = Bopen(buf, OREAD);
 	if(bin == nil)
-		sysfatal("Bopen: %r");
+		return nil;
 
 	ml = allocmtl(file);
 	m = nil;
@@ -728,7 +728,7 @@ Line2:
 				*p = 0;
 				if((obj->materials = objmtlparse(buf)) == nil){
 					error("objmtlparse: %r");
-					goto error;
+					fprint(2, "%r");
 				}
 			}else if(strcmp(buf, "usemtl") == 0){
 				while(isspace(c))
