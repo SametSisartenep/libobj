@@ -665,6 +665,8 @@ objparse(char *file)
 					o = alloco("default");
 					pusho(obj, o);
 				}
+				if(m != nil)
+					e->mtl = m;
 				addelem(o, e);
 			}
 			break;
@@ -746,6 +748,8 @@ Line2:
 					o = alloco("default");
 					pusho(obj, o);
 				}
+				if(m != nil)
+					e->mtl = m;
 				addelem(o, e);
 			}
 			break;
