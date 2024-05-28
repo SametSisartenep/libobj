@@ -172,6 +172,28 @@ readjpg(char *path)
 	return genreadimage("jpg", path);
 }
 
+static Memimage *
+readimagefile(char *path)
+{
+	Memimage *i;
+	char *ext;
+
+	i = nil;
+	ext = strrchr(path, '.');
+	if(ext++ != nil){
+		if(strcmp(ext, "tga") == 0)
+			i = readtga(path);
+		else if(strcmp(ext, "png") == 0)
+			i = readpng(path);
+		else if(strcmp(ext, "jpg") == 0)
+			i = readjpg(path);
+		else
+			werrstr("file format not supported");
+	}else
+		werrstr("unknown format");
+	return i;
+}
+
 static void
 addvertva(OBJVertexArray *va, OBJVertex v)
 {
@@ -298,6 +320,8 @@ allocmt(char *name)
 static void
 freemt(OBJMaterial *m)
 {
+	freememimage(m->norm);
+	freememimage(m->map_Kd);
 	free(m->name);
 	free(m);
 }
@@ -353,7 +377,7 @@ objmtlparse(char *file)
 	OBJMaterlist *ml;
 	OBJMaterial *m;
 	Biobuf *bin;
-	char *line, *f[10], *p, *ext, buf[128];
+	char *line, *f[10], *p, buf[128];
 	int nf;
 
 	if((p = strrchr(curline.file, '/')) != nil)
@@ -455,23 +479,21 @@ objmtlparse(char *file)
 				mterror("no material found");
 				goto error;
 			}
-			ext = strrchr(f[1], '.');
-			if(ext++ != nil){
-				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
-				if(strcmp(ext, "tga") == 0)
-					m->map_Kd = readtga(buf);
-				else if(strcmp(ext, "png") == 0)
-					m->map_Kd = readpng(buf);
-				else if(strcmp(ext, "jpg") == 0)
-					m->map_Kd = readjpg(buf);
-				else{
-					mterror("file format not supported");
-					goto error;
-				}
-				if(m->map_Kd == nil){
-					mterror("read%s: %r", ext);
-					goto error;
-				}
+			snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			if((m->map_Kd = readimagefile(buf)) == nil){
+				mterror("readimagefile: %r");
+				goto error;
+			}
+		}
+		if(nf == 2 && strcmp(f[0], "norm") == 0){
+			if(m == nil){
+				mterror("no material found");
+				goto error;
+			}
+			snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			if((m->norm = readimagefile(buf)) == nil){
+				mterror("readimagefile: %r");
+				goto error;
 			}
 		}
 		if(nf == 2 && strcmp(f[0], "illum") == 0){
@@ -501,7 +523,6 @@ objmtlfree(OBJMaterlist *ml)
 	for(i = 0; i < nelem(ml->mattab); i++)
 		for(m = ml->mattab[i]; m != nil; m = nm){
 			nm = m->next;
-			freememimage(m->map_Kd);
 			freemt(m);
 		}
 	free(ml->filename);

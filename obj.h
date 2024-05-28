@@ -75,6 +75,7 @@ struct OBJMaterial
 	double d;		/* dissolution factor */
 	int illum;		/* illumination model */
 	Memimage *map_Kd;	/* color texture file */
+	Memimage *norm;		/* normal texture file */
 	OBJMaterial *next;
 };
 
