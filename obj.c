@@ -629,7 +629,7 @@ objparse(char *file)
 			}
 			do{
 				*p++ = c;
-			}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
+			}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
 			*p = 0;
 			o = geto(obj, buf);
 			if(o == nil){
@@ -850,7 +850,7 @@ Line2:
 				p = buf;
 				do{
 					*p++ = c;
-				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
+				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
 				*p = 0;
 				if((obj->materials = objmtlparse(buf)) == nil){
 					error("objmtlparse: %r");
@@ -862,7 +862,7 @@ Line2:
 				p = buf;
 				do{
 					*p++ = c;
-				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_') && p-buf < sizeof(buf)-1);
+				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
 				*p = 0;
 				if(obj->materials != nil && (m = getmtl(obj->materials, buf)) == nil){
 					error("no material '%s' found", buf);
