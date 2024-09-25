@@ -29,7 +29,7 @@ error(char *fmt, ...)
 	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curline.file, curline.lineno);
 	vseprint(bp, buf + sizeof buf, fmt, va);
 	va_end(va);
-	werrstr("%s\n", buf);
+	werrstr("%s", buf);
 }
 
 static void
@@ -42,7 +42,7 @@ mterror(char *fmt, ...)
 	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curmtline.file, curmtline.lineno);
 	vseprint(bp, buf + sizeof buf, fmt, va);
 	va_end(va);
-	werrstr("%s\n", buf);
+	werrstr("%s", buf);
 }
 
 static void *
@@ -382,6 +382,8 @@ objmtlparse(char *file)
 
 	if((p = strrchr(curline.file, '/')) != nil)
 		snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, file);
+	else
+		snprint(buf, sizeof buf, "%s", file);
 
 	bin = Bopen(buf, OREAD);
 	if(bin == nil)
@@ -510,7 +512,10 @@ objmtlparse(char *file)
 				mterror("no material found");
 				goto error;
 			}
-			snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			if(p != nil)
+				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			else
+				snprint(buf, sizeof buf, "%s", f[1]);
 			if((m->map_Kd = readimagefile(buf)) == nil){
 				mterror("readimagefile: %r");
 				goto error;
@@ -524,7 +529,10 @@ objmtlparse(char *file)
 				mterror("no material found");
 				goto error;
 			}
-			snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			if(p != nil)
+				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
+			else
+				snprint(buf, sizeof buf, "%s", f[1]);
 			if((m->norm = readimagefile(buf)) == nil){
 				mterror("readimagefile: %r");
 				goto error;
