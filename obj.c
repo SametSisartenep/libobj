@@ -397,11 +397,21 @@ objmtlparse(char *file)
 		line[Blinelen(bin)-1] = 0;
 
 		nf = tokenize(line, f, nelem(f));
-		if(nf == 2 && strcmp(f[0], "newmtl") == 0){
+		if(nf < 1)
+			continue;
+
+		if(strcmp(f[0], "newmtl") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			m = allocmt(f[1]);
 			addmtl(ml, m);
-		}
-		if((nf == 2 || nf == 4) && strcmp(f[0], "Ka") == 0){
+		}else if(strcmp(f[0], "Ka") == 0){
+			if(nf != 2 && nf != 4){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -413,8 +423,11 @@ objmtlparse(char *file)
 				m->Ka.g = strtod(f[2], nil);
 				m->Ka.b = strtod(f[3], nil);
 			}
-		}
-		if((nf == 2 || nf == 4) && strcmp(f[0], "Kd") == 0){
+		}else if(strcmp(f[0], "Kd") == 0){
+			if(nf != 2 && nf != 4){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -426,8 +439,11 @@ objmtlparse(char *file)
 				m->Kd.g = strtod(f[2], nil);
 				m->Kd.b = strtod(f[3], nil);
 			}
-		}
-		if((nf == 2 || nf == 4) && strcmp(f[0], "Ks") == 0){
+		}else if(strcmp(f[0], "Ks") == 0){
+			if(nf != 2 && nf != 4){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -439,8 +455,11 @@ objmtlparse(char *file)
 				m->Ks.g = strtod(f[2], nil);
 				m->Ks.b = strtod(f[3], nil);
 			}
-		}
-		if((nf == 2 || nf == 4) && strcmp(f[0], "Ke") == 0){
+		}else if(strcmp(f[0], "Ke") == 0){
+			if(nf != 2 && nf != 4){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -452,29 +471,41 @@ objmtlparse(char *file)
 				m->Ke.g = strtod(f[2], nil);
 				m->Ke.b = strtod(f[3], nil);
 			}
-		}
-		if(nf == 2 && strcmp(f[0], "Ns") == 0){
+		}else if(strcmp(f[0], "Ns") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
 			}
 			m->Ns = strtod(f[1], nil);
-		}
-		if(nf == 2 && strcmp(f[0], "Ni") == 0){
+		}else if(strcmp(f[0], "Ni") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
 			}
 			m->Ni = strtod(f[1], nil);
-		}
-		if(nf == 2 && strcmp(f[0], "d") == 0){
+		}else if(strcmp(f[0], "d") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
 			}
 			m->d = strtod(f[1], nil);
-		}
-		if(nf == 2 && strcmp(f[0], "map_Kd") == 0){
+		}else if(strcmp(f[0], "map_Kd") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -484,8 +515,11 @@ objmtlparse(char *file)
 				mterror("readimagefile: %r");
 				goto error;
 			}
-		}
-		if(nf == 2 && strcmp(f[0], "norm") == 0){
+		}else if(strcmp(f[0], "norm") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
@@ -495,8 +529,11 @@ objmtlparse(char *file)
 				mterror("readimagefile: %r");
 				goto error;
 			}
-		}
-		if(nf == 2 && strcmp(f[0], "illum") == 0){
+		}else if(strcmp(f[0], "illum") == 0){
+			if(nf != 2){
+				mterror("syntax error");
+				goto error;
+			}
 			if(m == nil){
 				mterror("no material found");
 				goto error;
