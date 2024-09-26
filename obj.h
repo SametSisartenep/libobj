@@ -48,7 +48,7 @@ union OBJVertex
 
 struct OBJColor
 {
-	double r, g, b;
+	double r, g, b, a;
 };
 
 struct OBJVertexArray

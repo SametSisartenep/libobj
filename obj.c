@@ -425,6 +425,7 @@ objmtlparse(char *file)
 				m->Ka.g = strtod(f[2], nil);
 				m->Ka.b = strtod(f[3], nil);
 			}
+			m->Ka.a = 1;
 		}else if(strcmp(f[0], "Kd") == 0){
 			if(nf != 2 && nf != 4){
 				mterror("syntax error");
@@ -441,6 +442,7 @@ objmtlparse(char *file)
 				m->Kd.g = strtod(f[2], nil);
 				m->Kd.b = strtod(f[3], nil);
 			}
+			m->Kd.a = 1;
 		}else if(strcmp(f[0], "Ks") == 0){
 			if(nf != 2 && nf != 4){
 				mterror("syntax error");
@@ -457,6 +459,7 @@ objmtlparse(char *file)
 				m->Ks.g = strtod(f[2], nil);
 				m->Ks.b = strtod(f[3], nil);
 			}
+			m->Ks.a = 1;
 		}else if(strcmp(f[0], "Ke") == 0){
 			if(nf != 2 && nf != 4){
 				mterror("syntax error");
@@ -473,6 +476,7 @@ objmtlparse(char *file)
 				m->Ke.g = strtod(f[2], nil);
 				m->Ke.b = strtod(f[3], nil);
 			}
+			m->Ke.a = 1;
 		}else if(strcmp(f[0], "Ns") == 0){
 			if(nf != 2){
 				mterror("syntax error");
