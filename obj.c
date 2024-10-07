@@ -911,7 +911,7 @@ Line2:
 				p = buf;
 				do{
 					*p++ = c;
-				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
+				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-' || c == '(' || c == ')') && p-buf < sizeof(buf)-1);
 				*p = 0;
 				if(obj->materials != nil && (m = getmtl(obj->materials, buf)) == nil){
 					error("no material '%s' found", buf);
