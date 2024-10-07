@@ -13,33 +13,17 @@ typedef struct Line Line;
 struct Line
 {
 	char *file;
-	ulong lineno;
+	ulong line;
 };
 
-static Line curline;
-static Line curmtline;
-
 static void
-error(char *fmt, ...)
+error(Line *l, char *fmt, ...)
 {
 	va_list va;
 	char buf[ERRMAX], *bp;
 
 	va_start(va, fmt);
-	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curline.file, curline.lineno);
-	vseprint(bp, buf + sizeof buf, fmt, va);
-	va_end(va);
-	werrstr("%s", buf);
-}
-
-static void
-mterror(char *fmt, ...)
-{
-	va_list va;
-	char buf[ERRMAX], *bp;
-
-	va_start(va, fmt);
-	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", curmtline.file, curmtline.lineno);
+	bp = seprint(buf, buf + sizeof buf, "%s:%lud ", l->file, l->line);
 	vseprint(bp, buf + sizeof buf, fmt, va);
 	va_end(va);
 	werrstr("%s", buf);
@@ -321,6 +305,7 @@ static void
 freemt(OBJMaterial *m)
 {
 	freememimage(m->norm);
+	freememimage(m->map_Ks);
 	freememimage(m->map_Kd);
 	free(m->name);
 	free(m);
@@ -374,28 +359,35 @@ getmtl(OBJMaterlist *ml, char *name)
 OBJMaterlist *
 objmtlparse(char *file)
 {
+	Line curline;
 	OBJMaterlist *ml;
 	OBJMaterial *m;
 	Biobuf *bin;
-	char *line, *f[10], *p, buf[128];
+	char *line, *f[10], *p, wdir[128], buf[128];
 	int nf;
 
-	if((p = strrchr(curline.file, '/')) != nil)
-		snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, file);
-	else
-		snprint(buf, sizeof buf, "%s", file);
-
-	bin = Bopen(buf, OREAD);
-	if(bin == nil)
+	bin = Bopen(file, OREAD);
+	if(bin == nil){
+		werrstr("Bopen: %r");
 		return nil;
+	}
+
+	if((p = strrchr(file, '/')) != nil){
+		*p++ = 0;
+		snprint(wdir, sizeof wdir, "%s", file);
+		file = p;
+	}else{
+		wdir[0] = '.';
+		wdir[1] = 0;
+	}
 
 	ml = allocmtl(file);
 	m = nil;
-	curmtline.file = file;
-	curmtline.lineno = 0;
+	curline.file = file;
+	curline.line = 0;
 
 	while((line = Brdline(bin, '\n')) != nil){
-		curmtline.lineno++;
+		curline.line++;
 		line[Blinelen(bin)-1] = 0;
 
 		nf = tokenize(line, f, nelem(f));
@@ -404,18 +396,18 @@ objmtlparse(char *file)
 
 		if(strcmp(f[0], "newmtl") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			m = allocmt(f[1]);
 			addmtl(ml, m);
 		}else if(strcmp(f[0], "Ka") == 0){
 			if(nf != 2 && nf != 4){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			if(nf == 2)
@@ -428,11 +420,11 @@ objmtlparse(char *file)
 			m->Ka.a = 1;
 		}else if(strcmp(f[0], "Kd") == 0){
 			if(nf != 2 && nf != 4){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			if(nf == 2)
@@ -445,11 +437,11 @@ objmtlparse(char *file)
 			m->Kd.a = 1;
 		}else if(strcmp(f[0], "Ks") == 0){
 			if(nf != 2 && nf != 4){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			if(nf == 2)
@@ -462,11 +454,11 @@ objmtlparse(char *file)
 			m->Ks.a = 1;
 		}else if(strcmp(f[0], "Ke") == 0){
 			if(nf != 2 && nf != 4){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			if(nf == 2)
@@ -479,75 +471,83 @@ objmtlparse(char *file)
 			m->Ke.a = 1;
 		}else if(strcmp(f[0], "Ns") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			m->Ns = strtod(f[1], nil);
 		}else if(strcmp(f[0], "Ni") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			m->Ni = strtod(f[1], nil);
 		}else if(strcmp(f[0], "d") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			m->d = strtod(f[1], nil);
 		}else if(strcmp(f[0], "map_Kd") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
-			if(p != nil)
-				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
-			else
-				snprint(buf, sizeof buf, "%s", f[1]);
+			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
 			if((m->map_Kd = readimagefile(buf)) == nil){
-				mterror("readimagefile: %r");
+				error(&curline, "readimagefile: %r");
+				goto error;
+			}
+		}else if(strcmp(f[0], "map_Ks") == 0){
+			if(nf != 2){
+				error(&curline, "syntax error");
+				goto error;
+			}
+			if(m == nil){
+				error(&curline, "no material found");
+				goto error;
+			}
+			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
+			if((m->map_Ks = readimagefile(buf)) == nil){
+				error(&curline, "readimagefile: %r");
 				goto error;
 			}
 		}else if(strcmp(f[0], "norm") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
-			if(p != nil)
-				snprint(buf, sizeof buf, "%.*s/%s", (int)(p-curline.file), curline.file, f[1]);
-			else
-				snprint(buf, sizeof buf, "%s", f[1]);
+			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
 			if((m->norm = readimagefile(buf)) == nil){
-				mterror("readimagefile: %r");
+				error(&curline, "readimagefile: %r");
 				goto error;
 			}
 		}else if(strcmp(f[0], "illum") == 0){
 			if(nf != 2){
-				mterror("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			if(m == nil){
-				mterror("no material found");
+				error(&curline, "no material found");
 				goto error;
 			}
 			m->illum = strtol(f[1], nil, 10);
@@ -582,13 +582,14 @@ OBJ *
 objparse(char *file)
 {
 	Biobuf *bin;
+	Line curline;
 	OBJ *obj;
 	OBJObject *o;
 	OBJMaterial *m;
 	OBJElem *e;
 	OBJVertex v;
 	double *d;
-	char c, buf[256], *p;
+	char c, wdir[128], buf[256], *p;
 	int vtype, idxtab, idx, sign;
 
 	m = nil;
@@ -596,8 +597,16 @@ objparse(char *file)
 	bin = Bopen(file, OREAD);
 	if(bin == nil)
 		sysfatal("Bopen: %r");
+	if((p = strrchr(file, '/')) != nil){
+		*p++ = 0;
+		snprint(wdir, sizeof wdir, "%s", file);
+		file = p;
+	}else{
+		wdir[0] = '.';
+		wdir[1] = 0;
+	}
 	curline.file = file;
-	curline.lineno = 1;
+	curline.line = 1;
 	obj = emalloc(sizeof(OBJ));
 	while((c = Bgetc(bin)) != Beof){
 		switch(c){
@@ -611,7 +620,7 @@ objparse(char *file)
 			case 'n': vtype = OBJVNormal; break;
 			default:
 				if(!isspace(c)){
-					error("wrong vertex type");
+					error(&curline, "wrong vertex type");
 					goto error;
 				}
 			}
@@ -624,7 +633,7 @@ objparse(char *file)
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
-					error("unexpected character '%c'", c);
+					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
 				Bungetc(bin);
@@ -633,7 +642,7 @@ objparse(char *file)
 			switch(vtype){
 			case OBJVGeometric:
 				if(d-(double*)&v < 3){
-					error("not enough coordinates");
+					error(&curline, "not enough coordinates");
 					goto error;
 				}
 				if(d-(double*)&v < 4)
@@ -641,7 +650,7 @@ objparse(char *file)
 				break;
 			case OBJVTexture:
 				if(d-(double*)&v < 1){
-					error("not enough coordinates");
+					error(&curline, "not enough coordinates");
 					goto error;
 				}
 				while(d-(double*)&v < 3)
@@ -649,7 +658,7 @@ objparse(char *file)
 				break;
 			case OBJVParametric:
 				if(d-(double*)&v < 2){
-					error("not enough coordinates");
+					error(&curline, "not enough coordinates");
 					goto error;
 				}
 				if(d-(double*)&v < 3)
@@ -657,7 +666,7 @@ objparse(char *file)
 				break;
 			case OBJVNormal:
 				if(d-(double*)&v < 3){
-					error("not enough coordinates");
+					error(&curline, "not enough coordinates");
 					goto error;
 				}
 			}
@@ -667,13 +676,13 @@ objparse(char *file)
 			p = buf;
 			c = Bgetc(bin);
 			if(!isspace(c)){
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			while(isspace(c))
 				c = Bgetc(bin);
 			if(!isalnum(c)){
-				error("unexpected character '%c'", c);
+				error(&curline, "unexpected character '%c'", c);
 				goto error;
 			}
 			do{
@@ -695,7 +704,7 @@ objparse(char *file)
 		case 'p':
 			c = Bgetc(bin);
 			if(!isspace(c)){
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			while(c = Bgetc(bin), c != '\n'){
@@ -709,14 +718,14 @@ objparse(char *file)
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
-					error("unexpected character '%c'", c);
+					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
 				if(c == '-'){
 					sign = 1;
 					c = Bgetc(bin);
 					if(!isdigit(c)){
-						error("unexpected character '%c'", c);
+						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
 				}
@@ -726,7 +735,7 @@ objparse(char *file)
 				Bungetc(bin);
 				idx = sign ? obj->vertdata[OBJVGeometric].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[OBJVGeometric].nvert){
-					error("not enough vertices");
+					error(&curline, "not enough vertices");
 					goto error;
 				}
 				e = allocelem(OBJEPoint);
@@ -743,7 +752,7 @@ objparse(char *file)
 		case 'l':
 			c = Bgetc(bin);
 			if(!isspace(c)){
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			while(c = Bgetc(bin), c != '\n'){
@@ -757,14 +766,14 @@ objparse(char *file)
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
-					error("unexpected character '%c'", c);
+					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
 				if(c == '-'){
 					sign = 1;
 					c = Bgetc(bin);
 					if(!isdigit(c)){
-						error("unexpected character '%c'", c);
+						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
 				}
@@ -773,7 +782,7 @@ objparse(char *file)
 				}while(c = Bgetc(bin), isdigit(c));
 				idx = sign ? obj->vertdata[OBJVGeometric].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[OBJVGeometric].nvert){
-					error("not enough vertices");
+					error(&curline, "not enough vertices");
 					goto error;
 				}
 				e = allocelem(OBJELine);
@@ -791,7 +800,7 @@ Line2:
 				}
 				if(c != '-' && !isdigit(c)){
 					freeelem(e);
-					error("unexpected character '%c'", c);
+					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
 				if(c == '-'){
@@ -799,7 +808,7 @@ Line2:
 					c = Bgetc(bin);
 					if(!isdigit(c)){
 						freeelem(e);
-						error("unexpected character '%c'", c);
+						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
 				}
@@ -810,7 +819,7 @@ Line2:
 				idx = sign ? obj->vertdata[OBJVGeometric].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[OBJVGeometric].nvert){
 					freeelem(e);
-					error("not enough vertices");
+					error(&curline, "not enough vertices");
 					goto error;
 				}
 				addelemidx(e, OBJVGeometric, idx);
@@ -829,7 +838,7 @@ Line2:
 			c = Bgetc(bin);
 			if(!isspace(c)){
 				freeelem(e);
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			while(c = Bgetc(bin), c != '\n'){
@@ -847,14 +856,14 @@ Line2:
 				if(c == '/'){
 					if(++idxtab >= OBJNVERT){
 						freeelem(e);
-						error("unknown vertex type '%d'", idxtab);
+						error(&curline, "unknown vertex type '%d'", idxtab);
 						goto error;
 					}
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
 					freeelem(e);
-					error("unexpected character '%c'", c);
+					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
 				if(c == '-'){
@@ -862,7 +871,7 @@ Line2:
 					c = Bgetc(bin);
 					if(!isdigit(c)){
 						freeelem(e);
-						error("unexpected character '%c'", c);
+						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
 				}
@@ -873,7 +882,7 @@ Line2:
 				idx = sign ? obj->vertdata[idxtab].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[idxtab].nvert){
 					freeelem(e);
-					error("not enough vertices");
+					error(&curline, "not enough vertices");
 					goto error;
 				}
 				addelemidx(e, idxtab, idx);
@@ -896,14 +905,14 @@ Line2:
 			if(strcmp(buf, "mtllib") == 0){
 				while(isspace(c))
 					c = Bgetc(bin);
-				p = buf;
+				p = seprint(buf, buf + sizeof buf, "%s/", wdir);
 				do{
 					*p++ = c;
 				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
 				*p = 0;
 				if((obj->materials = objmtlparse(buf)) == nil){
-					error("objmtlparse: %r");
-					fprint(2, "%r");
+					error(&curline, "warning: objmtlparse: %r");
+					fprint(2, "%r\n");
 				}
 			}else if(strcmp(buf, "usemtl") == 0){
 				while(isspace(c))
@@ -914,11 +923,11 @@ Line2:
 				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-' || c == '(' || c == ')') && p-buf < sizeof(buf)-1);
 				*p = 0;
 				if(obj->materials != nil && (m = getmtl(obj->materials, buf)) == nil){
-					error("no material '%s' found", buf);
+					error(&curline, "no material '%s' found", buf);
 					goto error;
 				}
 			}else{
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 			while(c != '\n')
@@ -931,11 +940,11 @@ Line2:
 		}
 		do{
 			if(c == '\n'){
-				curline.lineno++;
+				curline.line++;
 				break;
 			}
 			if(!isspace(c)){
-				error("syntax error");
+				error(&curline, "syntax error");
 				goto error;
 			}
 		}while((c = Bgetc(bin)) != Beof);

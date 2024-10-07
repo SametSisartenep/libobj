@@ -72,9 +72,10 @@ struct OBJMaterial
 	OBJColor Ke;		/* emissive color */
 	double Ns;		/* specular highlight */
 	double Ni;		/* index of refraction */
-	double d;		/* dissolution factor */
+	double d;		/* dissolution factor (opacity) */
 	int illum;		/* illumination model */
 	Memimage *map_Kd;	/* color texture file */
+	Memimage *map_Ks;	/* specular texture file */
 	Memimage *norm;		/* normal texture file */
 	OBJMaterial *next;
 };
