@@ -2,7 +2,7 @@ libobj
 
 Libobj provides a parser for the Wavefront OBJ file format.
 
-It is not complete, i.e.  groups and materials for example aren't
-supported (ignored during parsing), plus it is required for the user
-to manipulate the loaded structures manually, because of the basically
-non-existent API.
+It is not complete, i.e.  groups and parametric curves for example
+are not supported (ignored during parsing), plus it is required for the
+user to manipulate the loaded structures manually, because of the
+basically non-existent API.
