@@ -1,5 +1,7 @@
 #include <u.h>
 #include <libc.h>
+#include <draw.h>
+#include <memdraw.h>
 #include "../obj.h"
 
 static char fd0[] = "/fd/0";
