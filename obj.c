@@ -139,43 +139,28 @@ genreadimage(char *prog, char *path)
 }
 
 static Memimage *
-readtga(char *path)
-{
-	return genreadimage("tga", path);
-}
-
-static Memimage *
-readpng(char *path)
-{
-	return genreadimage("png", path);
-}
-
-static Memimage *
-readjpg(char *path)
-{
-	return genreadimage("jpg", path);
-}
-
-static Memimage *
 readimagefile(char *path)
 {
-	Memimage *i;
 	char *ext;
+	static struct {
+		char *ext;
+		char *prog;
+	} fmttab[] = {
+		"tga", "tga",
+		"png", "png",
+		"jpg", "jpg",
+		"jpeg", "jpg",
+	}, *fmt;
 
-	i = nil;
 	ext = strrchr(path, '.');
 	if(ext++ != nil){
-		if(strcmp(ext, "tga") == 0)
-			i = readtga(path);
-		else if(strcmp(ext, "png") == 0)
-			i = readpng(path);
-		else if(strcmp(ext, "jpg") == 0)
-			i = readjpg(path);
-		else
-			werrstr("file format not supported");
+		for(fmt = &fmttab[0]; fmt < fmttab+nelem(fmttab); fmt++)
+			if(strcmp(ext, fmt->ext) == 0)
+				return genreadimage(fmt->prog, path);
+		werrstr("file format not supported");
 	}else
 		werrstr("unknown format");
-	return i;
+	return nil;
 }
 
 static void
@@ -998,6 +983,9 @@ OBJMaterlistfmt(Fmt *f)
 			n += fmtprint(f, "Ni %g\n", m->Ni);
 			n += fmtprint(f, "d %g\n", m->d);
 			n += fmtprint(f, "illum %d\n", m->illum);
+			n += fmtprint(f, "map_Kd %s_diffuse.png\n", m->name);
+			n += fmtprint(f, "map_Ks %s_specular.png\n", m->name);
+			n += fmtprint(f, "norm %s_normal.png\n", m->name);
 			n += fmtprint(f, "\n");
 		}
 
