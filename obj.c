@@ -7,7 +7,10 @@
 #include <obj.h>
 
 #undef isspace(c)
-#define isspace(c) ((c) == ' ' || (c) == '\t')
+#define isspace(c)	((c) == ' ' || (c) == '\t')
+#define isobjname(c)	(isalnum(c) || (c) == '.' || (c) == '_' || (c) == '-')
+#define isapath(c)	(isobjname(c) || (c) == '/')
+#define ismtlname(c)	(isobjname(c) || (c) == '(' || (c) == ')')
 
 typedef struct Line Line;
 struct Line
@@ -672,7 +675,7 @@ objparse(char *file)
 			}
 			do{
 				*p++ = c;
-			}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
+			}while(c = Bgetc(bin), isobjname(c) && p-buf < sizeof(buf)-1);
 			*p = 0;
 			o = geto(obj, buf);
 			if(o == nil){
@@ -893,24 +896,20 @@ Line2:
 				p = seprint(buf, buf + sizeof buf, "%s/", wdir);
 				do{
 					*p++ = c;
-				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-') && p-buf < sizeof(buf)-1);
+				}while(c = Bgetc(bin), isapath(c) && p-buf < sizeof(buf)-1);
 				*p = 0;
-				if((obj->materials = objmtlparse(buf)) == nil){
-					error(&curline, "warning: objmtlparse: %r");
-					fprint(2, "%r\n");
-				}
+				if((obj->materials = objmtlparse(buf)) == nil)
+					fprint(2, "warning: objmtlparse: %r\n");
 			}else if(strcmp(buf, "usemtl") == 0){
 				while(isspace(c))
 					c = Bgetc(bin);
 				p = buf;
 				do{
 					*p++ = c;
-				}while(c = Bgetc(bin), (isalnum(c) || c == '.' || c == '_' || c == '-' || c == '(' || c == ')') && p-buf < sizeof(buf)-1);
+				}while(c = Bgetc(bin), ismtlname(c) && p-buf < sizeof(buf)-1);
 				*p = 0;
-				if(obj->materials != nil && (m = getmtl(obj->materials, buf)) == nil){
-					error(&curline, "no material '%s' found", buf);
-					goto error;
-				}
+				if(obj->materials == nil || (m = getmtl(obj->materials, buf)) == nil)
+					fprint(2, "warning: no material '%s' found\n", buf);
 			}else{
 				error(&curline, "syntax error");
 				goto error;
