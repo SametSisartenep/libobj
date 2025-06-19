@@ -2,16 +2,17 @@
 .SH NAME
 objparse,
 objfree,
+objmtlparse,
+objmtlfree,
+objexport,
+OBJMaterlistfmt,
 OBJfmt,
 OBJfmtinstall
 \- OBJ parser
 .SH SYNOPSIS
 .ta 0.7i +0.7i +0.7i +0.7i +0.7i +0.7i +0.7i
 .EX
-#include <u.h>
-#include <libc.h>
-#include <obj.h>
-
+/* vertex types */
 enum {
 	OBJVGeometric,
 	OBJVTexture,
@@ -20,62 +21,167 @@ enum {
 	OBJNVERT
 };
 
+/* element types */
 enum {
 	OBJEPoint,
 	OBJELine,
 	OBJEFace,
-	OBJECurve,
-	OBJECurve2,
-	OBJESurface
 };
 
+/* object hash table size */
 enum {
 	OBJHTSIZE = 17
 };
 
-typedef struct
-{
-	union {
-		struct { double x, y, z, w; };	/* geometric */
-		struct { double u, v, vv; };	/* texture and parametric */
-		struct { double i, j, k; };	/* normal */
-	};
-} OBJVertex;
+typedef union OBJVertex OBJVertex;
+typedef struct OBJColor OBJColor;
+typedef struct OBJTexture OBJTexture;
+typedef struct OBJVertexArray OBJVertexArray;
+typedef struct OBJIndexArray OBJIndexArray;
+typedef struct OBJMaterial OBJMaterial;
+typedef struct OBJMaterlist OBJMaterlist;
+typedef struct OBJElem OBJElem;
+typedef struct OBJObject OBJObject;
+typedef struct OBJ OBJ;
 
-typedef struct
-{
-	OBJVertex	*verts;
-	int		nvert;
-} OBJVertexArray;
+#pragma varargck type "O" OBJ*
+#pragma varargck type "M" OBJMaterlist*
 
-typedef struct
+union OBJVertex
 {
-	int	*indices;
-	int	nindex;
-	int	type;
-	OBJElem	*next;
-} OBJElem;
+	struct { double x, y, z, w; };	/* geometric */
+	struct { double u, v, vv; };	/* texture and parametric */
+	struct { double i, j, k; };	/* normal */
+};
 
-typedef struct
+struct OBJColor
 {
-	char		*name;
-	OBJElem		*child;
-	OBJObject	*next;
-} OBJObject;
+	double r, g, b, a;
+};
 
-typedef struct
+struct OBJTexture
 {
-	OBJVertexArray	vertdata[OBJNVERT];
-	OBJObject	*objtab[OBJHTSIZE];
-} OBJ;
+	char *filename;
+	Memimage *image;
+};
 
-OBJ	*objparse(char *file);
-void	objfree(OBJ *obj);
-int	OBJfmt(Fmt*);
-void	OBJfmtinstall(void);
+struct OBJVertexArray
+{
+	OBJVertex *verts;
+	int nvert;
+};
+
+struct OBJIndexArray
+{
+	int *indices;
+	int nindex;
+};
+
+struct OBJMaterial
+{
+	char *name;
+	OBJColor Ka;		/* ambient color */
+	OBJColor Kd;		/* diffuse color */
+	OBJColor Ks;		/* specular color */
+	OBJColor Ke;		/* emissive color */
+	double Ns;		/* specular highlight */
+	double Ni;		/* index of refraction */
+	double d;		/* dissolution factor (opacity) */
+	int illum;		/* illumination model */
+	OBJTexture *map_Kd;	/* color texture file */
+	OBJTexture *map_Ks;	/* specular texture file */
+	OBJTexture *norm;	/* normal texture file */
+	OBJMaterial *next;
+};
+
+struct OBJMaterlist
+{
+	char *filename;
+	OBJMaterial *mattab[OBJHTSIZE];
+};
+
+struct OBJElem
+{
+	OBJIndexArray indextab[OBJNVERT];
+	int type;
+	OBJMaterial *mtl;
+	OBJElem *next;
+};
+
+struct OBJObject
+{
+	char *name;
+	OBJElem *child;
+	OBJElem *lastone;
+	OBJObject *next;
+};
+
+struct OBJ
+{
+	OBJVertexArray vertdata[OBJNVERT];
+	OBJObject *objtab[OBJHTSIZE];
+	OBJMaterlist *materials;
+};
+
+OBJ *objparse(char *path);
+void objfree(OBJ *obj);
+OBJMaterlist *objmtlparse(char *path);
+void objmtlfree(OBJMaterlist *ml);
+int objexport(char *dstdir, OBJ *obj);
+
+int OBJMaterlistfmt(Fmt *f);
+int OBJfmt(Fmt *f);
+void OBJfmtinstall(void);
 .EE
 .SH DESCRIPTION
-An OBJ structure contains geometry and material information about a set of 3D objects
+This library provides a parser for the Wavefront OBJ text file format.
+Objects are stored in a hash table within an
+.B OBJ
+structure, along with vertex data and materials (see
+.BR OBJMaterlist .)
+.PP
+.B Objparse
+takes the
+.I path
+to an
+.B .obj
+file and returns a pointer to a dynamically allocated
+.B OBJ
+structure filled with its content.  Object and material names, as well
+as material list and texture file names are preserved.
+.PP
+.B Objfree
+takes a pointer to a previously allocated
+.B OBJ
+structure and frees it along with all of its content, including textures (see
+.B OBJTexture .)
+.PP
+.B Objmtlparse
+reads the
+.B .mtl
+file provided at
+.I path
+and returns a pointer to an allocated
+.B OBJMaterlist
+structure.  As its name implies, it contains a list of materials, each
+with a name and a set of properties, including textures.
+.PP
+.B Objmtlfree
+takes a pointer to a previously allocated
+.B OBJMaterlist
+and releases its memory and that of its members.
+.PP
+.B OBJfmtinstall
+calls
+.IR fmtinstall (2)
+with
+.B OBJfmt
+for the letter
+.IR O ,
+and
+.B OBJMaterlistfmt
+for the letter
+.IR M .
 .SH SOURCE
 .B /sys/src/libobj
 .SH SEE ALSO
@@ -84,5 +190,17 @@ An OBJ structure contains geometry and material information about a set of 3D ob
 http://paulbourke.net/dataformats/obj
 .br
 https://people.sc.fsu.edu/~jburkardt/data/obj/obj.html
+.br
+https://paulbourke.net/dataformats/mtl/
+.br
+https://www.loc.gov/preservation/digital/formats/fdd/fdd000508.shtml
+.br
+https://people.computing.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-format.html
 .SH DIAGNOSTICS
+All the routines write to
+.IR errstr (2)
+in the event of failure, and
+return nil or -1 in cases where they return a pointer or an int,
+respectively.
 .SH BUGS
+There really is no API (what a shame.)
