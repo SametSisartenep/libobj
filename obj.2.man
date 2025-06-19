@@ -138,11 +138,11 @@ int OBJfmt(Fmt *f);
 void OBJfmtinstall(void);
 .EE
 .SH DESCRIPTION
-This library provides a parser for the Wavefront OBJ text file format.
+This library provides a parser for the Wavefront OBJ 3d scene
+description file format.
 Objects are stored in a hash table within an
 .B OBJ
-structure, along with vertex data and materials (see
-.BR OBJMaterlist .)
+structure, along with vertex data and materials.
 .PP
 .B Objparse
 takes the
@@ -157,8 +157,9 @@ as material list and texture file names are preserved.
 .B Objfree
 takes a pointer to a previously allocated
 .B OBJ
-structure and frees it along with all of its content, including textures (see
-.B OBJTexture .)
+structure and frees it along with all of its content, including
+textures (see
+.BR OBJTexture .)
 .PP
 .B Objmtlparse
 reads the
@@ -175,21 +176,26 @@ takes a pointer to a previously allocated
 .B OBJMaterlist
 and releases its memory and that of its members.
 .PP
-.B OBJfmtinstall
-calls
-.IR fmtinstall (2)
-with
 .B OBJfmt
-for the letter
-.IR O ,
-and
+is a formatting routine used to serialize an
+.B OBJ
+structure into text, and
 .B OBJMaterlistfmt
-for the letter
-.IR M .
+does the same for
+.B OBJMaterlist
+structures.  You can install them for a custom format label, or use
+the
+.B OBJfmtinstall
+procedure provided with this library to install them for the
+.B %O
+and
+.B %M
+labels respectively.
 .SH SOURCE
 .B /sys/src/libobj
 .SH SEE ALSO
-.IR geometry (2)
+.IR geometry (2),
+.IR fmtinstall(2)
 .br
 http://paulbourke.net/dataformats/obj
 .br
@@ -203,8 +209,8 @@ https://people.computing.clemson.edu/~dhouse/courses/405/docs/brief-obj-file-for
 .SH DIAGNOSTICS
 All the routines write to
 .IR errstr (2)
-in the event of failure, and
-return nil or -1 in cases where they return a pointer or an int,
-respectively.
+in the event of failure, and return either nil or -1.
 .SH BUGS
+There are probably some in the parser. It should be simpler.
+.PP
 There really is no API (what a shame.)
