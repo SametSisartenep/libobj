@@ -12,6 +12,10 @@ OBJfmtinstall
 .SH SYNOPSIS
 .ta 0.7i +0.7i +0.7i +0.7i +0.7i +0.7i +0.7i
 .EX
+#include <u.h>
+#include <libc.h>
+#include <obj.h>
+
 /* vertex types */
 enum {
 	OBJVGeometric,
