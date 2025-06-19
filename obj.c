@@ -152,7 +152,6 @@ readimagefile(char *path)
 		char *ext;
 		char *prog;
 	} fmttab[] = {
-		"tga", "tga",
 		"png", "png",
 		"jpg", "jpg",
 		"jpeg", "jpg",
@@ -184,6 +183,89 @@ readtexturefile(char *path)
 	s = strrchr(path, '/');
 	t->filename = s == nil? estrdup(path): estrdup(++s);
 	return t;
+}
+
+typedef struct Enco Enco;
+struct Enco
+{
+	int pfd[2];
+	int outfd;
+	char *prog;
+};
+
+static void
+encproc(void *arg)
+{
+	char buf[32];
+	Enco *d;
+
+	d = arg;
+
+	close(d->pfd[1]);
+	dup(d->pfd[0], 0);
+	close(d->pfd[0]);
+	dup(d->outfd, 1);
+	close(d->outfd);
+
+	snprint(buf, sizeof buf, "/bin/%s", d->prog);
+
+	execl(buf, d->prog, nil);
+	sysfatal("execl: %r");
+}
+
+static int
+genwriteimage(char *prog, char *path, Memimage *i)
+{
+	Enco d;
+	int rc;
+
+	d.prog = prog;
+
+	if(pipe(d.pfd) < 0)
+		sysfatal("pipe: %r");
+	d.outfd = create(path, OWRITE|OEXCL, 0644);
+	if(d.outfd < 0){
+		werrstr("create: %r");
+		return -1;
+	}
+	switch(fork()){
+	case -1:
+		sysfatal("fork: %r");
+	case 0:
+		encproc(&d);
+	default:
+		close(d.pfd[0]);
+		rc = writememimage(d.pfd[1], i);
+		close(d.pfd[1]);
+		close(d.outfd);
+	}
+
+	return rc;
+}
+
+static int
+writeimagefile(char *path, Memimage *i)
+{
+	char *ext;
+	static struct {
+		char *ext;
+		char *prog;
+	} fmttab[] = {
+		"tga", "totga",
+		"png", "topng",
+		"jpg", "tojpg",
+		"jpeg", "tojpg",
+	}, *fmt;
+
+	ext = strrchr(path, '.');
+	if(ext++ != nil){
+		for(fmt = &fmttab[0]; fmt < fmttab+nelem(fmttab); fmt++)
+			if(strcmp(ext, fmt->ext) == 0)
+				return genwriteimage(fmt->prog, path, i);
+		werrstr("file format not supported");
+	}else
+		werrstr("unknown format");
+	return -1;
 }
 
 static void
@@ -991,6 +1073,70 @@ objfree(OBJ *obj)
 }
 
 int
+objexport(char *path, OBJ *obj)
+{
+	Fmt f;
+	OBJMaterial *m;
+	char fmtbuf[8192], buf[256], *bufe, *pe;
+	va_list va;
+	int fd, i;
+
+	bufe = buf + sizeof buf;
+	pe = seprint(buf, bufe, "%s", path);
+
+	seprint(pe, bufe, "/main.obj");
+	fd = create(buf, OWRITE|OEXCL, 0644);
+	if(fd < 0){
+		werrstr("create: %r");
+		return -1;
+	}
+	fmtfdinit(&f, fd, fmtbuf, sizeof fmtbuf);
+	/* NOTE i don't like this either, but i don't want to mess with the fmt table */
+	va = (va_list)&obj;
+	f.args = va;
+	OBJfmt(&f);
+	fmtfdflush(&f);
+	close(fd);
+
+	if(obj->materials == nil)
+		return 0;
+
+	seprint(pe, bufe, "/%s", obj->materials->filename);
+	fd = create(buf, OWRITE|OEXCL, 0644);
+	if(fd < 0){
+		werrstr("create: %r");
+		return -1;
+	}
+	fmtfdinit(&f, fd, fmtbuf, sizeof fmtbuf);
+	va = (va_list)&obj->materials;
+	f.args = va;
+	OBJMaterlistfmt(&f);
+	fmtfdflush(&f);
+	close(fd);
+
+	for(i = 0; i < nelem(obj->materials->mattab); i++)
+		for(m = obj->materials->mattab[i]; m != nil; m = m->next){
+			if(m->map_Kd != nil){
+				seprint(pe, bufe, "/%s", m->map_Kd->filename);
+				if(writeimagefile(buf, m->map_Kd->image) < 0)
+					fprint(2, "writeimagefile: %r");
+			}
+			if(m->map_Ks != nil){
+				seprint(pe, bufe, "/%s", m->map_Ks->filename);
+				if(writeimagefile(buf, m->map_Ks->image) < 0)
+					fprint(2, "writeimagefile: %r");
+			}
+			if(m->norm != nil){
+				seprint(pe, bufe, "/%s", m->norm->filename);
+				if(writeimagefile(buf, m->norm->image) < 0)
+					fprint(2, "writeimagefile: %r");
+			}
+		}
+
+	return 0;
+}
+
+int
 OBJMaterlistfmt(Fmt *f)
 {
 	OBJMaterlist *ml;
@@ -1038,10 +1184,15 @@ OBJfmt(Fmt *f)
 	OBJObject *o;
 	OBJElem *e;
 	OBJVertex v;
+	OBJMaterial *curmtl;
 	int i, j, k, n, pack, maxnindex;
 
 	n = pack = 0;
+	curmtl = nil;
 	obj = va_arg(f->args, OBJ*);
+
+	if(obj->materials != nil)
+		n += fmtprint(f, "mtllib %s\n", obj->materials->filename);
 
 	for(i = 0; i < nelem(obj->vertdata); i++)
 		for(j = 0; j < obj->vertdata[i].nvert; j++){
@@ -1062,9 +1213,6 @@ OBJfmt(Fmt *f)
 			}
 		}
 
-	if(obj->materials != nil)
-		n += fmtprint(f, "mtllib %s\n", obj->materials->filename);
-
 	for(i = 0; i < nelem(obj->objtab); i++)
 		for(o = obj->objtab[i]; o != nil; o = o->next){
 			if(strcmp(o->name, "default") != 0)
@@ -1080,8 +1228,10 @@ OBJfmt(Fmt *f)
 					n += fmtprint(f, "l");
 					break;
 				case OBJEFace:
-					if(e->mtl != nil)
+					if(e->mtl != nil && e->mtl != curmtl){
 						n += fmtprint(f, "usemtl %s\n", e->mtl->name);
+						curmtl = e->mtl;
+					}
 					n += fmtprint(f, "f");
 					break;
 				//case OBJECurve:

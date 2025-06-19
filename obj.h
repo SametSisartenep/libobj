@@ -58,8 +58,8 @@ struct OBJColor
 
 struct OBJTexture
 {
-	Memimage *image;
 	char *filename;
+	Memimage *image;
 };
 
 struct OBJVertexArray
@@ -138,6 +138,7 @@ OBJ *objparse(char*);
 void objfree(OBJ*);
 OBJMaterlist *objmtlparse(char*);
 void objmtlfree(OBJMaterlist*);
+int objexport(char*, OBJ*);
 
 int OBJMaterlistfmt(Fmt*);
 int OBJfmt(Fmt*);
