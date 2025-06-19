@@ -33,6 +33,8 @@ main(int argc, char *argv[])
 	if(obj == nil)
 		sysfatal("objparse: %r");
 
+	if(obj->materials != nil)
+		print("%M\n", obj->materials);
 	print("%O\n", obj);
 	objfree(obj);
 	exits(nil);
