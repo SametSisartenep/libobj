@@ -6,6 +6,7 @@ enum {
 	OBJVParametric,
 	OBJNVERT
 };
+
 /* element types */
 enum {
 	OBJEPoint,
@@ -15,12 +16,14 @@ enum {
 	OBJECurve2,
 	OBJESurface
 };
+
 /* grouping types */
 enum {
 	OBJGGlobal,
 	OBJGSmoothing,
 	OBJGMerging
 };
+
 /* object hash table size */
 enum {
 	OBJHTSIZE = 17
@@ -28,6 +31,7 @@ enum {
 
 typedef union OBJVertex OBJVertex;
 typedef struct OBJColor OBJColor;
+typedef struct OBJTexture OBJTexture;
 typedef struct OBJVertexArray OBJVertexArray;
 typedef struct OBJIndexArray OBJIndexArray;
 typedef struct OBJMaterial OBJMaterial;
@@ -38,6 +42,7 @@ typedef struct OBJObject OBJObject;
 typedef struct OBJ OBJ;
 
 #pragma varargck type "O" OBJ*
+#pragma varargck type "M" OBJMaterlist*
 
 union OBJVertex
 {
@@ -49,6 +54,12 @@ union OBJVertex
 struct OBJColor
 {
 	double r, g, b, a;
+};
+
+struct OBJTexture
+{
+	Memimage *image;
+	char *filename;
 };
 
 struct OBJVertexArray
@@ -74,9 +85,9 @@ struct OBJMaterial
 	double Ni;		/* index of refraction */
 	double d;		/* dissolution factor (opacity) */
 	int illum;		/* illumination model */
-	Memimage *map_Kd;	/* color texture file */
-	Memimage *map_Ks;	/* specular texture file */
-	Memimage *norm;		/* normal texture file */
+	OBJTexture *map_Kd;	/* color texture file */
+	OBJTexture *map_Ks;	/* specular texture file */
+	OBJTexture *norm;	/* normal texture file */
 	OBJMaterial *next;
 };
 

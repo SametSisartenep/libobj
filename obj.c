@@ -19,6 +19,9 @@ struct Line
 	ulong line;
 };
 
+static OBJVertex ZV;
+static OBJColor ZC;
+
 static void
 error(Line *l, char *fmt, ...)
 {
@@ -166,6 +169,23 @@ readimagefile(char *path)
 	return nil;
 }
 
+static OBJTexture *
+readtexturefile(char *path)
+{
+	OBJTexture *t;
+	char *s;
+
+	t = emalloc(sizeof *t);
+	t->image = readimagefile(path);
+	if(t->image == nil){
+		werrstr("readimagefile: %r");
+		return nil;
+	}
+	s = strrchr(path, '/');
+	t->filename = s == nil? estrdup(path): estrdup(++s);
+	return t;
+}
+
 static void
 addvertva(OBJVertexArray *va, OBJVertex v)
 {
@@ -278,6 +298,15 @@ geto(OBJ *obj, char *n)
 	return o;
 }
 
+static void
+freetex(OBJTexture *t)
+{
+	if(t == nil)
+		return;
+	free(t->filename);
+	freememimage(t->image);
+}
+
 static OBJMaterial *
 allocmt(char *name)
 {
@@ -292,9 +321,9 @@ allocmt(char *name)
 static void
 freemt(OBJMaterial *m)
 {
-	freememimage(m->norm);
-	freememimage(m->map_Ks);
-	freememimage(m->map_Kd);
+	freetex(m->norm);
+	freetex(m->map_Ks);
+	freetex(m->map_Kd);
 	free(m->name);
 	free(m);
 }
@@ -497,8 +526,8 @@ objmtlparse(char *file)
 				goto error;
 			}
 			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
-			if((m->map_Kd = readimagefile(buf)) == nil){
-				error(&curline, "readimagefile: %r");
+			if((m->map_Kd = readtexturefile(buf)) == nil){
+				error(&curline, "readtexturefile: %r");
 				goto error;
 			}
 		}else if(strcmp(f[0], "map_Ks") == 0){
@@ -511,8 +540,8 @@ objmtlparse(char *file)
 				goto error;
 			}
 			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
-			if((m->map_Ks = readimagefile(buf)) == nil){
-				error(&curline, "readimagefile: %r");
+			if((m->map_Ks = readtexturefile(buf)) == nil){
+				error(&curline, "readtexturefile: %r");
 				goto error;
 			}
 		}else if(strcmp(f[0], "norm") == 0){
@@ -525,8 +554,8 @@ objmtlparse(char *file)
 				goto error;
 			}
 			snprint(buf, sizeof buf, "%s/%s", wdir, f[1]);
-			if((m->norm = readimagefile(buf)) == nil){
-				error(&curline, "readimagefile: %r");
+			if((m->norm = readtexturefile(buf)) == nil){
+				error(&curline, "readtexturefile: %r");
 				goto error;
 			}
 		}else if(strcmp(f[0], "illum") == 0){
@@ -974,17 +1003,28 @@ OBJMaterlistfmt(Fmt *f)
 	for(i = 0; i < nelem(ml->mattab); i++)
 		for(m = ml->mattab[i]; m != nil; m = m->next){
 			n += fmtprint(f, "newmtl %s\n", m->name);
-			n += fmtprint(f, "Ka %g %g %g\n", m->Ka.r, m->Ka.g, m->Ka.b);
-			n += fmtprint(f, "Kd %g %g %g\n", m->Kd.r, m->Kd.g, m->Kd.b);
-			n += fmtprint(f, "Ks %g %g %g\n", m->Ks.r, m->Ks.g, m->Ks.b);
-			n += fmtprint(f, "Ke %g %g %g\n", m->Ke.r, m->Ke.g, m->Ke.b);
-			n += fmtprint(f, "Ns %g\n", m->Ns);
-			n += fmtprint(f, "Ni %g\n", m->Ni);
-			n += fmtprint(f, "d %g\n", m->d);
-			n += fmtprint(f, "illum %d\n", m->illum);
-			n += fmtprint(f, "map_Kd %s_diffuse.png\n", m->name);
-			n += fmtprint(f, "map_Ks %s_specular.png\n", m->name);
-			n += fmtprint(f, "norm %s_normal.png\n", m->name);
+			if(memcmp(&m->Ka, &ZC, sizeof(ZC)) != 0)
+				n += fmtprint(f, "Ka %g %g %g\n", m->Ka.r, m->Ka.g, m->Ka.b);
+			if(memcmp(&m->Kd, &ZC, sizeof(ZC)) != 0)
+				n += fmtprint(f, "Kd %g %g %g\n", m->Kd.r, m->Kd.g, m->Kd.b);
+			if(memcmp(&m->Ks, &ZC, sizeof(ZC)) != 0)
+				n += fmtprint(f, "Ks %g %g %g\n", m->Ks.r, m->Ks.g, m->Ks.b);
+			if(memcmp(&m->Ke, &ZC, sizeof(ZC)) != 0)
+				n += fmtprint(f, "Ke %g %g %g\n", m->Ke.r, m->Ke.g, m->Ke.b);
+			if(m->Ns != 0)
+				n += fmtprint(f, "Ns %g\n", m->Ns);
+			if(m->Ni != 0)
+				n += fmtprint(f, "Ni %g\n", m->Ni);
+			if(m->d != 0)
+				n += fmtprint(f, "d %g\n", m->d);
+			if(m->illum != 0)
+				n += fmtprint(f, "illum %d\n", m->illum);
+			if(m->map_Kd != nil)
+				n += fmtprint(f, "map_Kd %s\n", m->map_Kd->filename);
+			if(m->map_Ks != nil)
+				n += fmtprint(f, "map_Ks %s\n", m->map_Ks->filename);
+			if(m->norm != nil)
+				n += fmtprint(f, "norm %s\n", m->norm->filename);
 			n += fmtprint(f, "\n");
 		}
 
@@ -1002,6 +1042,7 @@ OBJfmt(Fmt *f)
 
 	n = pack = 0;
 	obj = va_arg(f->args, OBJ*);
+
 	for(i = 0; i < nelem(obj->vertdata); i++)
 		for(j = 0; j < obj->vertdata[i].nvert; j++){
 			v = obj->vertdata[i].verts[j];
@@ -1020,8 +1061,10 @@ OBJfmt(Fmt *f)
 				break;
 			}
 		}
+
 	if(obj->materials != nil)
 		n += fmtprint(f, "mtllib %s\n", obj->materials->filename);
+
 	for(i = 0; i < nelem(obj->objtab); i++)
 		for(o = obj->objtab[i]; o != nil; o = o->next){
 			if(strcmp(o->name, "default") != 0)
@@ -1061,6 +1104,7 @@ OBJfmt(Fmt *f)
 					n += fmtprint(f, "\n");
 			}
 		}
+
 	return n;
 }
 
@@ -1068,4 +1112,5 @@ void
 OBJfmtinstall(void)
 {
 	fmtinstall('O', OBJfmt);
+	fmtinstall('M', OBJMaterlistfmt);
 }
