@@ -152,6 +152,7 @@ readimagefile(char *path)
 		char *ext;
 		char *prog;
 	} fmttab[] = {
+		"tga", "tga",
 		"png", "png",
 		"jpg", "jpg",
 		"jpeg", "jpg",
@@ -251,7 +252,6 @@ writeimagefile(char *path, Memimage *i)
 		char *ext;
 		char *prog;
 	} fmttab[] = {
-		"tga", "totga",
 		"png", "topng",
 		"jpg", "tojpg",
 		"jpeg", "tojpg",
