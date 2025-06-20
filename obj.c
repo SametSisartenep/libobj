@@ -275,14 +275,14 @@ addvertva(OBJVertexArray *va, OBJVertex v)
 	va->verts[va->nvert-1] = v;
 }
 
-static void
-addvert(OBJ *obj, OBJVertex v, int vtype)
+void
+objaddvertex(OBJ *obj, OBJVertex v, int vtype)
 {
 	addvertva(&obj->vertdata[vtype], v);
 }
 
-static void
-addelem(OBJObject *o, OBJElem *e)
+void
+objaddelem(OBJObject *o, OBJElem *e)
 {
 	if(o->lastone == nil){
 		o->lastone = o->child = e;
@@ -292,8 +292,8 @@ addelem(OBJObject *o, OBJElem *e)
 	o->lastone = o->lastone->next;
 }
 
-static OBJElem *
-allocelem(int t)
+OBJElem *
+objallocelem(int t)
 {
 	OBJElem *e;
 
@@ -303,8 +303,8 @@ allocelem(int t)
 	return e;
 }
 
-static void
-addelemidx(OBJElem *e, int idxtab, int idx)
+void
+objaddelemidx(OBJElem *e, int idxtab, int idx)
 {
 	OBJIndexArray *tab;
 
@@ -313,8 +313,8 @@ addelemidx(OBJElem *e, int idxtab, int idx)
 	tab->indices[tab->nindex-1] = idx;
 }
 
-static void
-freeelem(OBJElem *e)
+void
+objfreeelem(OBJElem *e)
 {
 	int i;
 
@@ -323,8 +323,8 @@ freeelem(OBJElem *e)
 	free(e);
 }
 
-static OBJObject *
-alloco(char *n)
+OBJObject *
+objallocobject(char *n)
 {
 	OBJObject *o;
 
@@ -333,21 +333,21 @@ alloco(char *n)
 	return o;
 }
 
-static void
-freeo(OBJObject *o)
+void
+objfreeobject(OBJObject *o)
 {
 	OBJElem *e, *ne;
 
 	free(o->name);
 	for(e = o->child; e != nil; e = ne){
 		ne = e->next;
-		freeelem(e);
+		objfreeelem(e);
 	}
 	free(o);
 }
 
-static void
-pusho(OBJ *obj, OBJObject *o)
+void
+objpushobject(OBJ *obj, OBJObject *o)
 {
 	OBJObject *op, *prev;
 	uint h;
@@ -357,7 +357,7 @@ pusho(OBJ *obj, OBJObject *o)
 	for(op = obj->objtab[h]; op != nil; prev = op, op = op->next)
 		if(strcmp(op->name, o->name) == 0){
 			o->next = op->next;
-			freeo(op);
+			objfreeobject(op);
 			break;
 		}
 	if(prev == nil){
@@ -367,8 +367,8 @@ pusho(OBJ *obj, OBJObject *o)
 	prev->next = o;
 }
 
-static OBJObject *
-geto(OBJ *obj, char *n)
+OBJObject *
+objgetobject(OBJ *obj, char *n)
 {
 	OBJObject *o;
 	uint h;
@@ -380,8 +380,8 @@ geto(OBJ *obj, char *n)
 	return o;
 }
 
-static void
-freetex(OBJTexture *t)
+void
+objfreetexture(OBJTexture *t)
 {
 	if(t == nil)
 		return;
@@ -389,8 +389,8 @@ freetex(OBJTexture *t)
 	freememimage(t->image);
 }
 
-static OBJMaterial *
-allocmt(char *name)
+OBJMaterial *
+objallocmt(char *name)
 {
 	OBJMaterial *m;
 
@@ -400,18 +400,18 @@ allocmt(char *name)
 	return m;
 }
 
-static void
-freemt(OBJMaterial *m)
+void
+objfreemt(OBJMaterial *m)
 {
-	freetex(m->norm);
-	freetex(m->map_Ks);
-	freetex(m->map_Kd);
+	objfreetexture(m->norm);
+	objfreetexture(m->map_Ks);
+	objfreetexture(m->map_Kd);
 	free(m->name);
 	free(m);
 }
 
-static OBJMaterlist *
-allocmtl(char *file)
+OBJMaterlist *
+objallocmtl(char *file)
 {
 	OBJMaterlist *ml;
 
@@ -421,8 +421,8 @@ allocmtl(char *file)
 	return ml;
 }
 
-static void
-addmtl(OBJMaterlist *ml, OBJMaterial *m)
+void
+objaddmtl(OBJMaterlist *ml, OBJMaterial *m)
 {
 	OBJMaterial *mp, *prev;
 	uint h;
@@ -432,7 +432,7 @@ addmtl(OBJMaterlist *ml, OBJMaterial *m)
 	for(mp = ml->mattab[h]; mp != nil; prev = mp, mp = mp->next)
 		if(strcmp(mp->name, m->name) == 0){
 			m->next = mp->next;
-			freemt(mp);
+			objfreemt(mp);
 			break;
 		}
 	if(prev == nil){
@@ -442,8 +442,8 @@ addmtl(OBJMaterlist *ml, OBJMaterial *m)
 	prev->next = m;
 }
 
-static OBJMaterial *
-getmtl(OBJMaterlist *ml, char *name)
+OBJMaterial *
+objgetmtl(OBJMaterlist *ml, char *name)
 {
 	OBJMaterial *m;
 	uint h;
@@ -480,7 +480,7 @@ objmtlparse(char *file)
 		wdir[1] = 0;
 	}
 
-	ml = allocmtl(file);
+	ml = objallocmtl(file);
 	m = nil;
 	curline.file = file;
 	curline.line = 0;
@@ -498,8 +498,8 @@ objmtlparse(char *file)
 				error(&curline, "syntax error");
 				goto error;
 			}
-			m = allocmt(f[1]);
-			addmtl(ml, m);
+			m = objallocmt(f[1]);
+			objaddmtl(ml, m);
 		}else if(strcmp(f[0], "Ka") == 0){
 			if(nf != 2 && nf != 4){
 				error(&curline, "syntax error");
@@ -671,7 +671,7 @@ objmtlfree(OBJMaterlist *ml)
 	for(i = 0; i < nelem(ml->mattab); i++)
 		for(m = ml->mattab[i]; m != nil; m = nm){
 			nm = m->next;
-			freemt(m);
+			objfreemt(m);
 		}
 	free(ml->filename);
 	free(ml);
@@ -769,7 +769,7 @@ objparse(char *file)
 					goto error;
 				}
 			}
-			addvert(obj, v, vtype);
+			objaddvertex(obj, v, vtype);
 			break;
 		case 'o':
 			p = buf;
@@ -788,10 +788,10 @@ objparse(char *file)
 				*p++ = c;
 			}while(c = Bgetc(bin), isobjname(c) && p-buf < sizeof(buf)-1);
 			*p = 0;
-			o = geto(obj, buf);
+			o = objgetobject(obj, buf);
 			if(o == nil){
-				o = alloco(buf);
-				pusho(obj, o);
+				o = objallocobject(buf);
+				objpushobject(obj, o);
 			}
 			break;
 		case 'g':
@@ -837,15 +837,15 @@ objparse(char *file)
 					error(&curline, "not enough vertices");
 					goto error;
 				}
-				e = allocelem(OBJEPoint);
-				addelemidx(e, OBJVGeometric, idx);
+				e = objallocelem(OBJEPoint);
+				objaddelemidx(e, OBJVGeometric, idx);
 				if(o == nil){
-					o = alloco("default");
-					pusho(obj, o);
+					o = objallocobject("default");
+					objpushobject(obj, o);
 				}
 				if(m != nil)
 					e->mtl = m;
-				addelem(o, e);
+				objaddelem(o, e);
 			}
 			break;
 		case 'l':
@@ -884,8 +884,8 @@ objparse(char *file)
 					error(&curline, "not enough vertices");
 					goto error;
 				}
-				e = allocelem(OBJELine);
-				addelemidx(e, OBJVGeometric, idx);
+				e = objallocelem(OBJELine);
+				objaddelemidx(e, OBJVGeometric, idx);
 Line2:
 				idx = 0;
 				sign = 0;
@@ -898,7 +898,7 @@ Line2:
 					goto Line2;
 				}
 				if(c != '-' && !isdigit(c)){
-					freeelem(e);
+					objfreeelem(e);
 					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
@@ -906,7 +906,7 @@ Line2:
 					sign = 1;
 					c = Bgetc(bin);
 					if(!isdigit(c)){
-						freeelem(e);
+						objfreeelem(e);
 						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
@@ -917,26 +917,26 @@ Line2:
 				Bungetc(bin);
 				idx = sign ? obj->vertdata[OBJVGeometric].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[OBJVGeometric].nvert){
-					freeelem(e);
+					objfreeelem(e);
 					error(&curline, "not enough vertices");
 					goto error;
 				}
-				addelemidx(e, OBJVGeometric, idx);
+				objaddelemidx(e, OBJVGeometric, idx);
 				if(o == nil){
-					o = alloco("default");
-					pusho(obj, o);
+					o = objallocobject("default");
+					objpushobject(obj, o);
 				}
 				if(m != nil)
 					e->mtl = m;
-				addelem(o, e);
+				objaddelem(o, e);
 			}
 			break;
 		case 'f':
-			e = allocelem(OBJEFace);
+			e = objallocelem(OBJEFace);
 			idxtab = 0;
 			c = Bgetc(bin);
 			if(!isspace(c)){
-				freeelem(e);
+				objfreeelem(e);
 				error(&curline, "syntax error");
 				goto error;
 			}
@@ -954,14 +954,14 @@ Line2:
 				}
 				if(c == '/'){
 					if(++idxtab >= OBJNVERT){
-						freeelem(e);
+						objfreeelem(e);
 						error(&curline, "unknown vertex type '%d'", idxtab);
 						goto error;
 					}
 					continue;
 				}
 				if(c != '-' && !isdigit(c)){
-					freeelem(e);
+					objfreeelem(e);
 					error(&curline, "unexpected character '%c'", c);
 					goto error;
 				}
@@ -969,7 +969,7 @@ Line2:
 					sign = 1;
 					c = Bgetc(bin);
 					if(!isdigit(c)){
-						freeelem(e);
+						objfreeelem(e);
 						error(&curline, "unexpected character '%c'", c);
 						goto error;
 					}
@@ -980,19 +980,19 @@ Line2:
 				Bungetc(bin);
 				idx = sign ? obj->vertdata[idxtab].nvert-idx : idx-1;
 				if(idx+1 > obj->vertdata[idxtab].nvert){
-					freeelem(e);
+					objfreeelem(e);
 					error(&curline, "not enough vertices");
 					goto error;
 				}
-				addelemidx(e, idxtab, idx);
+				objaddelemidx(e, idxtab, idx);
 			}
 			if(o == nil){
-				o = alloco("default");
-				pusho(obj, o);
+				o = objallocobject("default");
+				objpushobject(obj, o);
 			}
 			if(m != nil)
 				e->mtl = m;
-			addelem(o, e);
+			objaddelem(o, e);
 			break;
 		case 'm':
 		case 'u':
@@ -1019,7 +1019,7 @@ Line2:
 					*p++ = c;
 				}while(c = Bgetc(bin), ismtlname(c) && p-buf < sizeof(buf)-1);
 				*p = 0;
-				if(obj->materials == nil || (m = getmtl(obj->materials, buf)) == nil)
+				if(obj->materials == nil || (m = objgetmtl(obj->materials, buf)) == nil)
 					fprint(2, "warning: no material '%s' found\n", buf);
 			}else{
 				error(&curline, "syntax error");
@@ -1067,7 +1067,7 @@ objfree(OBJ *obj)
 	for(i = 0; i < nelem(obj->objtab); i++)
 		for(o = obj->objtab[i]; o != nil; o = no){
 			no = o->next;
-			freeo(o);
+			objfreeobject(o);
 		}
 	free(obj);
 }

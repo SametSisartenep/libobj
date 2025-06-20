@@ -134,6 +134,21 @@ struct OBJ
 	OBJMaterlist *materials;
 };
 
+void objaddvertex(OBJ*, OBJVertex, int);
+void objaddelem(OBJObject*, OBJElem*);
+OBJElem *objallocelem(int);
+void objaddelemidx(OBJElem*, int, int);
+void objfreeelem(OBJElem*);
+OBJObject *objallocobject(char*);
+void objfreeobject(OBJObject*);
+void objpushobject(OBJ*, OBJObject*);
+OBJObject *objgetobject(OBJ*, char*);
+void objfreetexture(OBJTexture*);
+OBJMaterial *objallocmt(char*);
+void objfreemt(OBJMaterial*);
+OBJMaterlist *objallocmtl(char*);
+void objaddmtl(OBJMaterlist*, OBJMaterial*);
+OBJMaterial *objgetmtl(OBJMaterlist*, char*);
 OBJ *objparse(char*);
 void objfree(OBJ*);
 OBJMaterlist *objmtlparse(char*);
