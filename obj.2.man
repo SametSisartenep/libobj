@@ -1,13 +1,10 @@
 .TH OBJ 2
 .SH NAME
-objparse,
-objfree,
-objmtlparse,
-objmtlfree,
-objexport,
-OBJMaterlistfmt,
-OBJfmt,
-OBJfmtinstall
+objaddvertex, objaddelem, objallocelem, objaddelemidx, objfreeelem,
+objallocobject, objfreeobject, objpushobject, objgetobject,
+objfreetexture, objallocmt, objfreemt, objallocmtl, objaddmtl,
+objgetmtl, objparse, objfree, objmtlparse, objmtlfree, objexport,
+OBJMaterlistfmt, OBJfmt, OBJfmtinstall
 \- OBJ parser
 .SH SYNOPSIS
 .ta 0.7i +0.7i +0.7i +0.7i +0.7i +0.7i +0.7i
@@ -127,15 +124,30 @@ struct OBJ
 	OBJMaterlist *materials;
 };
 
-OBJ *objparse(char *path);
-void objfree(OBJ *obj);
-OBJMaterlist *objmtlparse(char *path);
-void objmtlfree(OBJMaterlist *ml);
-int objexport(char *dstdir, OBJ *obj);
+void objaddvertex(OBJ *obj, OBJVertex v, int vtype)
+void objaddelem(OBJObject *o, OBJElem *e)
+OBJElem *objallocelem(int t)
+void objaddelemidx(OBJElem *e, int idxtab, int idx)
+void objfreeelem(OBJElem *e)
+OBJObject *objallocobject(char *n)
+void objfreeobject(OBJObject *o)
+void objpushobject(OBJ *obj, OBJObject *o)
+OBJObject *objgetobject(OBJ *obj, char *n)
+void objfreetexture(OBJTexture *t)
+OBJMaterial *objallocmt(char *name)
+void objfreemt(OBJMaterial *m)
+OBJMaterlist *objallocmtl(char *file)
+void objaddmtl(OBJMaterlist *ml, OBJMaterial *m)
+OBJMaterial *objgetmtl(OBJMaterlist *ml, char *name)
+OBJ *objparse(char *path)
+void objfree(OBJ *obj)
+OBJMaterlist *objmtlparse(char *path)
+void objmtlfree(OBJMaterlist *ml)
+int objexport(char *dstdir, OBJ *obj)
 
-int OBJMaterlistfmt(Fmt *f);
-int OBJfmt(Fmt *f);
-void OBJfmtinstall(void);
+int OBJMaterlistfmt(Fmt *f)
+int OBJfmt(Fmt *f)
+void OBJfmtinstall(void)
 .EE
 .SH DESCRIPTION
 This library provides a parser for the Wavefront OBJ 3d scene
@@ -213,4 +225,7 @@ in the event of failure, and return either nil or -1.
 .SH BUGS
 There are probably some in the parser. It should be simpler.
 .PP
-There really is no API (what a shame.)
+Objexport uses an internal 8KB buffer for fmt(2) writes that can
+overflow libthread stacks.  If you're getting weird errors with
+malloc(2) and friends after using it in your program, increase the
+mainstacksize.
