@@ -134,7 +134,7 @@ struct OBJ
 	OBJMaterlist *materials;
 };
 
-void objaddvertex(OBJ*, OBJVertex, int);
+int objaddvertex(OBJ*, OBJVertex, int);
 void objaddelem(OBJObject*, OBJElem*);
 OBJElem *objallocelem(int);
 void objaddelemidx(OBJElem*, int, int);

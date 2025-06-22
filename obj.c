@@ -268,17 +268,18 @@ writeimagefile(char *path, Memimage *i)
 	return -1;
 }
 
-static void
+static int
 addvertva(OBJVertexArray *va, OBJVertex v)
 {
-	va->verts = erealloc(va->verts, ++va->nvert*sizeof(OBJVertex));
-	va->verts[va->nvert-1] = v;
+	va->verts = erealloc(va->verts, (va->nvert + 1)*sizeof(OBJVertex));
+	va->verts[va->nvert++] = v;
+	return va->nvert-1;
 }
 
-void
+int
 objaddvertex(OBJ *obj, OBJVertex v, int vtype)
 {
-	addvertva(&obj->vertdata[vtype], v);
+	return addvertva(&obj->vertdata[vtype], v);
 }
 
 void
@@ -309,8 +310,8 @@ objaddelemidx(OBJElem *e, int idxtab, int idx)
 	OBJIndexArray *tab;
 
 	tab = &e->indextab[idxtab];
-	tab->indices = erealloc(tab->indices, ++tab->nindex*sizeof(int));
-	tab->indices[tab->nindex-1] = idx;
+	tab->indices = erealloc(tab->indices, (tab->nindex + 1)*sizeof(int));
+	tab->indices[tab->nindex++] = idx;
 }
 
 void
@@ -1119,17 +1120,17 @@ objexport(char *path, OBJ *obj)
 			if(m->map_Kd != nil){
 				seprint(pe, bufe, "/%s", m->map_Kd->filename);
 				if(writeimagefile(buf, m->map_Kd->image) < 0)
-					fprint(2, "writeimagefile: %r");
+					fprint(2, "writeimagefile: %r\n");
 			}
 			if(m->map_Ks != nil){
 				seprint(pe, bufe, "/%s", m->map_Ks->filename);
 				if(writeimagefile(buf, m->map_Ks->image) < 0)
-					fprint(2, "writeimagefile: %r");
+					fprint(2, "writeimagefile: %r\n");
 			}
 			if(m->norm != nil){
 				seprint(pe, bufe, "/%s", m->norm->filename);
 				if(writeimagefile(buf, m->norm->image) < 0)
-					fprint(2, "writeimagefile: %r");
+					fprint(2, "writeimagefile: %r\n");
 			}
 		}
 
