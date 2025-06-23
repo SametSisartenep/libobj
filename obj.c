@@ -1153,19 +1153,19 @@ OBJMaterlistfmt(Fmt *f)
 		for(m = ml->mattab[i]; m != nil; m = m->next){
 			n += fmtprint(f, "newmtl %s\n", m->name);
 			if(memcmp(&m->Ka, &ZC, sizeof(ZC)) != 0)
-				n += fmtprint(f, "Ka %g %g %g\n", m->Ka.r, m->Ka.g, m->Ka.b);
+				n += fmtprint(f, "Ka %.5f %.5f %.5f\n", m->Ka.r, m->Ka.g, m->Ka.b);
 			if(memcmp(&m->Kd, &ZC, sizeof(ZC)) != 0)
-				n += fmtprint(f, "Kd %g %g %g\n", m->Kd.r, m->Kd.g, m->Kd.b);
+				n += fmtprint(f, "Kd %.5f %.5f %.5f\n", m->Kd.r, m->Kd.g, m->Kd.b);
 			if(memcmp(&m->Ks, &ZC, sizeof(ZC)) != 0)
-				n += fmtprint(f, "Ks %g %g %g\n", m->Ks.r, m->Ks.g, m->Ks.b);
+				n += fmtprint(f, "Ks %.5f %.5f %.5f\n", m->Ks.r, m->Ks.g, m->Ks.b);
 			if(memcmp(&m->Ke, &ZC, sizeof(ZC)) != 0)
-				n += fmtprint(f, "Ke %g %g %g\n", m->Ke.r, m->Ke.g, m->Ke.b);
+				n += fmtprint(f, "Ke %.5f %.5f %.5f\n", m->Ke.r, m->Ke.g, m->Ke.b);
 			if(m->Ns != 0)
-				n += fmtprint(f, "Ns %g\n", m->Ns);
+				n += fmtprint(f, "Ns %.5f\n", m->Ns);
 			if(m->Ni != 0)
-				n += fmtprint(f, "Ni %g\n", m->Ni);
+				n += fmtprint(f, "Ni %.5f\n", m->Ni);
 			if(m->d != 0)
-				n += fmtprint(f, "d %g\n", m->d);
+				n += fmtprint(f, "d %.5f\n", m->d);
 			if(m->illum != 0)
 				n += fmtprint(f, "illum %d\n", m->illum);
 			if(m->map_Kd != nil)
@@ -1202,16 +1202,16 @@ OBJfmt(Fmt *f)
 			v = obj->vertdata[i].verts[j];
 			switch(i){
 			case OBJVGeometric:
-				n += fmtprint(f, "v %g %g %g %g\n", v.x, v.y, v.z, v.w);
+				n += fmtprint(f, "v %.6f %.6f %.6f %.6f\n", v.x, v.y, v.z, v.w);
 				break;
 			case OBJVTexture:
-				n += fmtprint(f, "vt %g %g %g\n", v.u, v.v, v.vv);
+				n += fmtprint(f, "vt %.6f %.6f %.6f\n", v.u, v.v, v.vv);
 				break;
 			case OBJVNormal:
-				n += fmtprint(f, "vn %g %g %g\n", v.i, v.j, v.k);
+				n += fmtprint(f, "vn %.6f %.6f %.6f\n", v.i, v.j, v.k);
 				break;
 			case OBJVParametric:
-				n += fmtprint(f, "vp %g %g %g\n", v.u, v.v, v.vv);
+				n += fmtprint(f, "vp %.6f %.6f %.6f\n", v.u, v.v, v.vv);
 				break;
 			}
 		}
@@ -1246,10 +1246,10 @@ OBJfmt(Fmt *f)
 				for(k = 0; k < maxnindex; k++){
 					n += fmtprint(f, " ");
 					for(j = 0; j < nelem(e->indextab); j++){
-						if(k >= e->indextab[j].nindex)
-							continue;
 						if(j > 0)
 							n += fmtprint(f, "/");
+						if(k >= e->indextab[j].nindex)
+							continue;
 						n += fmtprint(f, "%d", e->indextab[j].indices[k]+1);
 					}
 				}
