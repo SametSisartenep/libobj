@@ -271,7 +271,8 @@ writeimagefile(char *path, Memimage *i)
 static int
 addvertva(OBJVertexArray *va, OBJVertex v)
 {
-	va->verts = erealloc(va->verts, (va->nvert + 1)*sizeof(OBJVertex));
+	if(va->nvert % 4 == 0)
+		va->verts = erealloc(va->verts, (va->nvert + 4)*sizeof(OBJVertex));
 	va->verts[va->nvert++] = v;
 	return va->nvert-1;
 }
@@ -310,7 +311,8 @@ objaddelemidx(OBJElem *e, int idxtab, int idx)
 	OBJIndexArray *tab;
 
 	tab = &e->indextab[idxtab];
-	tab->indices = erealloc(tab->indices, (tab->nindex + 1)*sizeof(int));
+	if(tab->nindex % 4 == 0)
+		tab->indices = erealloc(tab->indices, (tab->nindex + 4)*sizeof(int));
 	tab->indices[tab->nindex++] = idx;
 }
 
