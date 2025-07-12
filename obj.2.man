@@ -154,7 +154,101 @@ This library provides a parser for the Wavefront OBJ 3d scene
 description file format.
 Objects are stored in a hash table within an
 .B OBJ
-structure, along with vertex data and materials.
+structure, along with vertex data and materials.  Each
+.B OBJObject
+contains a list of children
+.BR OBJElem s
+(elements), and each of these elements contains a table of indices
+and a reference to a material, used to represent its mesh.
+.PP
+.B Objaddvertex
+adds vertex
+.I v
+to the vertex table
+.I vtype
+in
+.I obj.
+.PP
+.B Objaddelem
+appends an element to
+.IR o 's
+list of children.
+.PP
+.B Objallocelem
+allocates a new element of type
+.IR t .
+.PP
+.B Objaddelemidx
+pushes the index
+.I idx
+into the vertex type table
+.IR idxtab .
+.PP
+.B Objfreeelem
+frees the element along with its index tables.
+.PP
+.B Objallocobject
+allocates a new object with name
+.IR n .
+The name cannot be
+.B nil
+and it must be unique within the
+.BR OBJ .
+.PP
+.B Objfreeobject
+frees the passed object and all of its children elements.
+.PP
+.B Objpushobject
+adds the object
+.I o
+to
+.IR obj 's
+hash table.
+.PP
+.B Objgetobject
+retrieves the object named
+.I n
+from the
+.IR obj .
+It returns
+.B nil
+if none is found.
+.PP
+.B Objfreetexture
+frees the texture and its associated
+.BR Memimage .
+.PP
+.B Objallocmt
+creates a material named
+.IR name .
+Just like with the objects, it must be unique and not
+.BR nil .
+.PP
+.B Objfreemt
+frees the material along with all of its textures.
+.PP
+.B Objallocmtl
+creates an empty material list with file name
+.IR file .
+This
+.I file
+is used for serialization (see
+.BR OBJMaterlistfmt .)
+.PP
+.B Objaddmtl
+appends
+.I m
+to the list of materials in
+.IR ml .
+.PP
+.B Objgetmtl
+looks up in
+.I ml
+for a material with name
+.I name
+and returns it if found,
+.B nil
+otherwise.
 .PP
 .B Objparse
 takes the
@@ -180,8 +274,7 @@ file provided at
 .I path
 and returns a pointer to an allocated
 .B OBJMaterlist
-structure.  As its name implies, it contains a list of materials, each
-with a name and a set of properties, including textures.
+structure, which contains the list of materials extracted from it.
 .PP
 .B Objmtlfree
 takes a pointer to a previously allocated
@@ -225,7 +318,10 @@ in the event of failure, and return either nil or -1.
 .SH BUGS
 There are probably some in the parser. It should be simpler.
 .PP
-Objexport uses an internal 8KB buffer for fmt(2) writes that can
-overflow libthread stacks.  If you're getting weird errors with
-malloc(2) and friends after using it in your program, increase the
+Objexport uses an internal 8KB buffer for
+.IR fmt (2)
+writes that can overflow libthread stacks.  If you're getting weird
+errors with
+.IR malloc (2)
+and friends after using it in your program, increase the
 mainstacksize.
