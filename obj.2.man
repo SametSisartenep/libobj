@@ -189,11 +189,9 @@ frees the element along with its index tables.
 .PP
 .B Objallocobject
 allocates a new object with name
-.IR n .
-The name cannot be
-.B nil
-and it must be unique within the
-.BR OBJ .
+.IR n ,
+which cannot be
+.BR nil .
 .PP
 .B Objfreeobject
 frees the passed object and all of its children elements.
@@ -204,6 +202,9 @@ adds the object
 to
 .IR obj 's
 hash table.
+.IR O 's
+name should be unique, otherwise the existing homonymous object will
+be replaced by it.
 .PP
 .B Objgetobject
 retrieves the object named
@@ -280,6 +281,26 @@ structure, which contains the list of materials extracted from it.
 takes a pointer to a previously allocated
 .B OBJMaterlist
 and releases its memory and that of its members.
+.PP
+.B Objexport
+creates a file structure within the directory
+.IR dstdir ,
+writing the serialized
+.I obj
+into a file named
+.BR main.obj ,
+and its
+.B OBJMaterlist
+into another file named after its
+.I filename
+property.  It also creates a file for every
+texture referenced by the materials, formatting them based on the
+.B OBJTexture
+.I filename
+property's extension (which can be any of
+.B .png
+or
+.BR .jpe?g .)
 .PP
 .B OBJfmt
 is a formatting routine used to serialize an
